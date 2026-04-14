@@ -1,0 +1,729 @@
+shipment_id,type,date,product_category,origin,O_Country,destination,D_Country,value,freight_cost,customs_clearance_time_days,delivery_status
+SHP-2024-0001,Export,2024-01-02,Electronics,Mumbai, India,New York, USA,85000,4250,2.1,On-Time
+SHP-2024-0002,Import,2024-01-03,Textiles,Shanghai, China,Mumbai, India,120000,6000,3.5,On-Time
+SHP-2024-0003,Export,2024-01-04,Consumer Goods,Mumbai, India,London, UK,45000,2250,1.8,On-Time
+SHP-2024-0004,Import,2024-01-05,Industrial Equipment,Hamburg, Germany,Mumbai, India,250000,12500,4.2,Delayed
+SHP-2024-0005,Export,2024-01-06,Electronics,Mumbai, India,Tokyo, Japan,95000,4750,2.5,On-Time
+SHP-2024-0006,Import,2024-01-07,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,60000,3000,2.0,On-Time
+SHP-2024-0007,Export,2024-01-08,Textiles,Mumbai, India,Dubai, UAE,75000,3750,1.5,On-Time
+SHP-2024-0008,Import,2024-01-09,Electronics,Seoul, South Korea,Mumbai, India,180000,9000,3.8,On-Time
+SHP-2024-0009,Export,2024-01-10,Industrial Equipment,Mumbai, India,Singapore,65000,3250,2.2,On-Time
+SHP-2024-0010,Import,2024-01-11,Textiles,Dhaka, Bangladesh,Mumbai, India,90000,4500,2.7,On-Time
+SHP-2024-0011,Export,2024-01-12,Consumer Goods,Mumbai, India,Sydney, Australia,55000,2750,3.1,Delayed
+SHP-2024-0012,Import,2024-01-13,Electronics,Taipei, Taiwan,Mumbai, India,210000,10500,4.0,On-Time
+SHP-2024-0013,Export,2024-01-14,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,130000,6500,3.3,On-Time
+SHP-2024-0014,Import,2024-01-15,Consumer Goods,Bangkok, Thailand,Mumbai, India,70000,3500,2.4,On-Time
+SHP-2024-0015,Export,2024-01-16,Textiles,Mumbai, India,New York, USA,110000,5500,2.9,On-Time
+SHP-2024-0016,Import,2024-01-17,Industrial Equipment,Genoa, Italy,Mumbai, India,190000,9500,4.5,On-Time
+SHP-2024-0017,Export,2024-01-18,Electronics,Mumbai, India,Los Angeles, USA,150000,7500,3.0,On-Time
+SHP-2024-0018,Import,2024-01-19,Textiles,Istanbul, Turkey,Mumbai, India,80000,4000,3.2,Delayed
+SHP-2024-0019,Export,2024-01-20,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,35000,1750,1.9,On-Time
+SHP-2024-0020,Import,2024-01-21,Electronics,San Francisco, USA,Mumbai, India,220000,11000,4.1,On-Time
+SHP-2024-0021,Export,2024-01-22,Industrial Equipment,Mumbai, India,Durban, South Africa,95000,4750,3.6,On-Time
+SHP-2024-0022,Import,2024-01-23,Consumer Goods,Jakarta, Indonesia,Mumbai, India,48000,2400,2.6,On-Time
+SHP-2024-0023,Export,2024-01-24,Textiles,Mumbai, India,Lagos, Nigeria,65000,3250,3.4,On-Time
+SHP-2024-0024,Import,2024-01-25,Industrial Equipment,Yokohama, Japan,Mumbai, India,300000,15000,4.8,Delayed
+SHP-2024-0025,Export,2024-01-26,Electronics,Mumbai, India,Mexico City, Mexico,120000,6000,3.9,On-Time
+SHP-2024-0026,Import,2024-01-27,Consumer Goods,Manila, Philippines,Mumbai, India,40000,2000,2.8,On-Time
+SHP-2024-0027,Export,2024-01-28,Textiles,Mumbai, India,Cairo, Egypt,50000,2500,2.3,On-Time
+SHP-2024-0028,Import,2024-01-29,Electronics,Helsinki, Finland,Mumbai, India,160000,8000,3.7,On-Time
+SHP-2024-0029,Export,2024-01-30,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,70000,3500,4.3,On-Time
+SHP-2024-0030,Import,2024-01-31,Industrial Equipment,Busan, South Korea,Mumbai, India,280000,14000,4.6,On-Time
+SHP-2024-0031,Export,2024-02-01,Electronics,Mumbai, India,New York, USA,88000,4400,2.2,On-Time
+SHP-2024-0032,Import,2024-02-02,Textiles,Shanghai, China,Mumbai, India,125000,6250,3.6,On-Time
+SHP-2024-0033,Export,2024-02-03,Consumer Goods,Mumbai, India,London, UK,47000,2350,1.9,Delayed
+SHP-2024-0034,Import,2024-02-04,Industrial Equipment,Hamburg, Germany,Mumbai, India,260000,13000,4.3,On-Time
+SHP-2024-0035,Export,2024-02-05,Electronics,Mumbai, India,Tokyo, Japan,99000,4950,2.6,On-Time
+SHP-2024-0036,Import,2024-02-06,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,63000,3150,2.1,On-Time
+SHP-2024-0037,Export,2024-02-07,Textiles,Mumbai, India,Dubai, UAE,79000,3950,1.6,On-Time
+SHP-2024-0038,Import,2024-02-08,Electronics,Seoul, South Korea,Mumbai, India,187000,9350,3.9,On-Time
+SHP-2024-0039,Export,2024-02-09,Industrial Equipment,Mumbai, India,Singapore,69000,3450,2.3,Delayed
+SHP-2024-0040,Import,2024-02-10,Textiles,Dhaka, Bangladesh,Mumbai, India,94000,4700,2.8,On-Time
+SHP-2024-0041,Export,2024-02-11,Consumer Goods,Mumbai, India,Sydney, Australia,59000,2950,3.2,On-Time
+SHP-2024-0042,Import,2024-02-12,Electronics,Taipei, Taiwan,Mumbai, India,218000,10900,4.1,On-Time
+SHP-2024-0043,Export,2024-02-13,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,138000,6900,3.4,On-Time
+SHP-2024-0044,Import,2024-02-14,Consumer Goods,Bangkok, Thailand,Mumbai, India,74000,3700,2.5,On-Time
+SHP-2024-0045,Export,2024-02-15,Textiles,Mumbai, India,New York, USA,115000,5750,3.0,Delayed
+SHP-2024-0046,Import,2024-02-16,Industrial Equipment,Genoa, Italy,Mumbai, India,198000,9900,4.6,On-Time
+SHP-2024-0047,Export,2024-02-17,Electronics,Mumbai, India,Los Angeles, USA,158000,7900,3.1,On-Time
+SHP-2024-0048,Import,2024-02-18,Textiles,Istanbul, Turkey,Mumbai, India,84000,4200,3.3,On-Time
+SHP-2024-0049,Export,2024-02-19,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,39000,1950,2.0,On-Time
+SHP-2024-0050,Import,2024-02-20,Electronics,San Francisco, USA,Mumbai, India,228000,11400,4.2,On-Time
+SHP-2024-0051,Export,2024-02-21,Industrial Equipment,Mumbai, India,Durban, South Africa,98000,4900,3.7,On-Time
+SHP-2024-0052,Import,2024-02-22,Consumer Goods,Jakarta, Indonesia,Mumbai, India,51000,2550,2.7,On-Time
+SHP-2024-0053,Export,2024-02-23,Textiles,Mumbai, India,Lagos, Nigeria,68000,3400,3.5,Delayed
+SHP-2024-0054,Import,2024-02-24,Industrial Equipment,Yokohama, Japan,Mumbai, India,310000,15500,4.9,On-Time
+SHP-2024-0055,Export,2024-02-25,Electronics,Mumbai, India,Mexico City, Mexico,124000,6200,4.0,On-Time
+SHP-2024-0056,Import,2024-02-26,Consumer Goods,Manila, Philippines,Mumbai, India,43000,2150,2.9,On-Time
+SHP-2024-0057,Export,2024-02-27,Textiles,Mumbai, India,Cairo, Egypt,53000,2650,2.4,On-Time
+SHP-2024-0058,Import,2024-02-28,Electronics,Helsinki, Finland,Mumbai, India,165000,8250,3.8,On-Time
+SHP-2024-0059,Export,2024-03-01,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,73000,3650,4.4,Delayed
+SHP-2024-0060,Import,2024-03-02,Industrial Equipment,Busan, South Korea,Mumbai, India,288000,14400,4.7,On-Time
+SHP-2024-0061,Export,2024-03-03,Electronics,Mumbai, India,New York, USA,92000,4600,2.3,On-Time
+SHP-2024-0062,Import,2024-03-04,Textiles,Shanghai, China,Mumbai, India,130000,6500,3.7,On-Time
+SHP-2024-0063,Export,2024-03-05,Consumer Goods,Mumbai, India,London, UK,50000,2500,2.0,On-Time
+SHP-2024-0064,Import,2024-03-06,Industrial Equipment,Hamburg, Germany,Mumbai, India,270000,13500,4.4,On-Time
+SHP-2024-0065,Export,2024-03-07,Electronics,Mumbai, India,Tokyo, Japan,105000,5250,2.7,On-Time
+SHP-2024-0066,Import,2024-03-08,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,66000,3300,2.2,Delayed
+SHP-2024-0067,Export,2024-03-09,Textiles,Mumbai, India,Dubai, UAE,83000,4150,1.7,On-Time
+SHP-2024-0068,Import,2024-03-10,Electronics,Seoul, South Korea,Mumbai, India,195000,9750,4.0,On-Time
+SHP-2024-0069,Export,2024-03-11,Industrial Equipment,Mumbai, India,Singapore,72000,3600,2.4,On-Time
+SHP-2024-0070,Import,2024-03-12,Textiles,Dhaka, Bangladesh,Mumbai, India,98000,4900,2.9,On-Time
+SHP-2024-0071,Export,2024-03-13,Consumer Goods,Mumbai, India,Sydney, Australia,62000,3100,3.3,On-Time
+SHP-2024-0072,Import,2024-03-14,Electronics,Taipei, Taiwan,Mumbai, India,225000,11250,4.2,Delayed
+SHP-2024-0073,Export,2024-03-15,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,145000,7250,3.5,On-Time
+SHP-2024-0074,Import,2024-03-16,Consumer Goods,Bangkok, Thailand,Mumbai, India,78000,3900,2.6,On-Time
+SHP-2024-0075,Export,2024-03-17,Textiles,Mumbai, India,New York, USA,120000,6000,3.1,On-Time
+SHP-2024-0076,Import,2024-03-18,Industrial Equipment,Genoa, Italy,Mumbai, India,205000,10250,4.7,On-Time
+SHP-2024-0077,Export,2024-03-19,Electronics,Mumbai, India,Los Angeles, USA,165000,8250,3.2,On-Time
+SHP-2024-0078,Import,2024-03-20,Textiles,Istanbul, Turkey,Mumbai, India,88000,4400,3.4,On-Time
+SHP-2024-0079,Export,2024-03-21,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,42000,2100,2.1,Delayed
+SHP-2024-0080,Import,2024-03-22,Electronics,San Francisco, USA,Mumbai, India,235000,11750,4.3,On-Time
+SHP-2024-0081,Export,2024-03-23,Industrial Equipment,Mumbai, India,Durban, South Africa,102000,5100,3.8,On-Time
+SHP-2024-0082,Import,2024-03-24,Consumer Goods,Jakarta, Indonesia,Mumbai, India,54000,2700,2.8,On-Time
+SHP-2024-0083,Export,2024-03-25,Textiles,Mumbai, India,Lagos, Nigeria,71000,3550,3.6,On-Time
+SHP-2024-0084,Import,2024-03-26,Industrial Equipment,Yokohama, Japan,Mumbai, India,320000,16000,5.0,On-Time
+SHP-2024-0085,Export,2024-03-27,Electronics,Mumbai, India,Mexico City, Mexico,128000,6400,4.1,Delayed
+SHP-2024-0086,Import,2024-03-28,Consumer Goods,Manila, Philippines,Mumbai, India,46000,2300,3.0,On-Time
+SHP-2024-0087,Export,2024-03-29,Textiles,Mumbai, India,Cairo, Egypt,56000,2800,2.5,On-Time
+SHP-2024-0088,Import,2024-03-30,Electronics,Helsinki, Finland,Mumbai, India,170000,8500,3.9,On-Time
+SHP-2024-0089,Export,2024-03-31,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,76000,3800,4.5,On-Time
+SHP-2024-0090,Import,2024-04-01,Industrial Equipment,Busan, South Korea,Mumbai, India,295000,14750,4.8,On-Time
+SHP-2024-0091,Export,2024-04-02,Electronics,Mumbai, India,New York, USA,95000,4750,2.4,On-Time
+SHP-2024-0092,Import,2024-04-03,Textiles,Shanghai, China,Mumbai, India,135000,6750,3.8,Delayed
+SHP-2024-0093,Export,2024-04-04,Consumer Goods,Mumbai, India,London, UK,52000,2600,2.1,On-Time
+SHP-2024-0094,Import,2024-04-05,Industrial Equipment,Hamburg, Germany,Mumbai, India,275000,13750,4.5,On-Time
+SHP-2024-0095,Export,2024-04-06,Electronics,Mumbai, India,Tokyo, Japan,110000,5500,2.8,On-Time
+SHP-2024-0096,Import,2024-04-07,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,68000,3400,2.3,On-Time
+SHP-2024-0097,Export,2024-04-08,Textiles,Mumbai, India,Dubai, UAE,86000,4300,1.8,On-Time
+SHP-2024-0098,Import,2024-04-09,Electronics,Seoul, South Korea,Mumbai, India,200000,10000,4.1,Delayed
+SHP-2024-0099,Export,2024-04-10,Industrial Equipment,Mumbai, India,Singapore,75000,3750,2.5,On-Time
+SHP-2024-0100,Import,2024-04-11,Textiles,Dhaka, Bangladesh,Mumbai, India,100000,5000,3.0,On-Time
+SHP-2024-0101,Export,2024-04-12,Consumer Goods,Mumbai, India,Sydney, Australia,65000,3250,3.4,On-Time
+SHP-2024-0102,Import,2024-04-13,Electronics,Taipei, Taiwan,Mumbai, India,230000,11500,4.3,On-Time
+SHP-2024-0103,Export,2024-04-14,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,150000,7500,3.6,On-Time
+SHP-2024-0104,Import,2024-04-15,Consumer Goods,Bangkok, Thailand,Mumbai, India,80000,4000,2.7,Delayed
+SHP-2024-0105,Export,2024-04-16,Textiles,Mumbai, India,New York, USA,125000,6250,3.2,On-Time
+SHP-2024-0106,Import,2024-04-17,Industrial Equipment,Genoa, Italy,Mumbai, India,210000,10500,4.8,On-Time
+SHP-2024-0107,Export,2024-04-18,Electronics,Mumbai, India,Los Angeles, USA,170000,8500,3.3,On-Time
+SHP-2024-0108,Import,2024-04-19,Textiles,Istanbul, Turkey,Mumbai, India,90000,4500,3.5,On-Time
+SHP-2024-0109,Export,2024-04-20,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,45000,2250,2.2,On-Time
+SHP-2024-0110,Import,2024-04-21,Electronics,San Francisco, USA,Mumbai, India,240000,12000,4.4,Delayed
+SHP-2024-0111,Export,2024-04-22,Industrial Equipment,Mumbai, India,Durban, South Africa,105000,5250,3.9,On-Time
+SHP-2024-0112,Import,2024-04-23,Consumer Goods,Jakarta, Indonesia,Mumbai, India,56000,2800,2.9,On-Time
+SHP-2024-0113,Export,2024-04-24,Textiles,Mumbai, India,Lagos, Nigeria,73000,3650,3.7,On-Time
+SHP-2024-0114,Import,2024-04-25,Industrial Equipment,Yokohama, Japan,Mumbai, India,330000,16500,5.1,On-Time
+SHP-2024-0115,Export,2024-04-26,Electronics,Mumbai, India,Mexico City, Mexico,132000,6600,4.2,On-Time
+SHP-2024-0116,Import,2024-04-27,Consumer Goods,Manila, Philippines,Mumbai, India,48000,2400,3.1,Delayed
+SHP-2024-0117,Export,2024-04-28,Textiles,Mumbai, India,Cairo, Egypt,58000,2900,2.6,On-Time
+SHP-2024-0118,Import,2024-04-29,Electronics,Helsinki, Finland,Mumbai, India,175000,8750,4.0,On-Time
+SHP-2024-0119,Export,2024-04-30,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,78000,3900,4.6,On-Time
+SHP-2024-0120,Import,2024-05-01,Industrial Equipment,Busan, South Korea,Mumbai, India,300000,15000,4.9,On-Time
+SHP-2024-0121,Export,2024-05-02,Electronics,Mumbai, India,New York, USA,98000,4900,2.5,On-Time
+SHP-2024-0122,Import,2024-05-03,Textiles,Shanghai, China,Mumbai, India,140000,7000,3.9,On-Time
+SHP-2024-0123,Export,2024-05-04,Consumer Goods,Mumbai, India,London, UK,54000,2700,2.2,Delayed
+SHP-2024-0124,Import,2024-05-05,Industrial Equipment,Hamburg, Germany,Mumbai, India,280000,14000,4.6,On-Time
+SHP-2024-0125,Export,2024-05-06,Electronics,Mumbai, India,Tokyo, Japan,115000,5750,2.9,On-Time
+SHP-2024-0126,Import,2024-05-07,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,70000,3500,2.4,On-Time
+SHP-2024-0127,Export,2024-05-08,Textiles,Mumbai, India,Dubai, UAE,89000,4450,1.9,On-Time
+SHP-2024-0128,Import,2024-05-09,Electronics,Seoul, South Korea,Mumbai, India,205000,10250,4.2,On-Time
+SHP-2024-0129,Export,2024-05-10,Industrial Equipment,Mumbai, India,Singapore,78000,3900,2.6,Delayed
+SHP-2024-0130,Import,2024-05-11,Textiles,Dhaka, Bangladesh,Mumbai, India,103000,5150,3.1,On-Time
+SHP-2024-0131,Export,2024-05-12,Consumer Goods,Mumbai, India,Sydney, Australia,68000,3400,3.5,On-Time
+SHP-2024-0132,Import,2024-05-13,Electronics,Taipei, Taiwan,Mumbai, India,235000,11750,4.4,On-Time
+SHP-2024-0133,Export,2024-05-14,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,155000,7750,3.7,On-Time
+SHP-2024-0134,Import,2024-05-15,Consumer Goods,Bangkok, Thailand,Mumbai, India,82000,4100,2.8,On-Time
+SHP-2024-0135,Export,2024-05-16,Textiles,Mumbai, India,New York, USA,130000,6500,3.3,Delayed
+SHP-2024-0136,Import,2024-05-17,Industrial Equipment,Genoa, Italy,Mumbai, India,215000,10750,4.9,On-Time
+SHP-2024-0137,Export,2024-05-18,Electronics,Mumbai, India,Los Angeles, USA,175000,8750,3.4,On-Time
+SHP-2024-0138,Import,2024-05-19,Textiles,Istanbul, Turkey,Mumbai, India,93000,4650,3.6,On-Time
+SHP-2024-0139,Export,2024-05-20,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,48000,2400,2.3,On-Time
+SHP-2024-0140,Import,2024-05-21,Electronics,San Francisco, USA,Mumbai, India,245000,12250,4.5,On-Time
+SHP-2024-0141,Export,2024-05-22,Industrial Equipment,Mumbai, India,Durban, South Africa,108000,5400,4.0,Delayed
+SHP-2024-0142,Import,2024-05-23,Consumer Goods,Jakarta, Indonesia,Mumbai, India,58000,2900,3.0,On-Time
+SHP-2024-0143,Export,2024-05-24,Textiles,Mumbai, India,Lagos, Nigeria,75000,3750,3.8,On-Time
+SHP-2024-0144,Import,2024-05-25,Industrial Equipment,Yokohama, Japan,Mumbai, India,340000,17000,5.2,On-Time
+SHP-2024-0145,Export,2024-05-26,Electronics,Mumbai, India,Mexico City, Mexico,135000,6750,4.3,On-Time
+SHP-2024-0146,Import,2024-05-27,Consumer Goods,Manila, Philippines,Mumbai, India,50000,2500,3.2,On-Time
+SHP-2024-0147,Export,2024-05-28,Textiles,Mumbai, India,Cairo, Egypt,60000,3000,2.7,Delayed
+SHP-2024-0148,Import,2024-05-29,Electronics,Helsinki, Finland,Mumbai, India,180000,9000,4.1,On-Time
+SHP-2024-0149,Export,2024-05-30,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,80000,4000,4.7,On-Time
+SHP-2024-0150,Import,2024-05-31,Industrial Equipment,Busan, South Korea,Mumbai, India,305000,15250,5.0,On-Time
+SHP-2024-0151,Export,2024-06-01,Electronics,Mumbai, India,New York, USA,101000,5050,2.6,On-Time
+SHP-2024-0152,Import,2024-06-02,Textiles,Shanghai, China,Mumbai, India,145000,7250,4.0,On-Time
+SHP-2024-0153,Export,2024-06-03,Consumer Goods,Mumbai, India,London, UK,56000,2800,2.3,On-Time
+SHP-2024-0154,Import,2024-06-04,Industrial Equipment,Hamburg, Germany,Mumbai, India,285000,14250,4.7,Delayed
+SHP-2024-0155,Export,2024-06-05,Electronics,Mumbai, India,Tokyo, Japan,118000,5900,3.0,On-Time
+SHP-2024-0156,Import,2024-06-06,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,72000,3600,2.5,On-Time
+SHP-2024-0157,Export,2024-06-07,Textiles,Mumbai, India,Dubai, UAE,92000,4600,2.0,On-Time
+SHP-2024-0158,Import,2024-06-08,Electronics,Seoul, South Korea,Mumbai, India,210000,10500,4.3,On-Time
+SHP-2024-0159,Export,2024-06-09,Industrial Equipment,Mumbai, India,Singapore,81000,4050,2.7,On-Time
+SHP-2024-0160,Import,2024-06-10,Textiles,Dhaka, Bangladesh,Mumbai, India,106000,5300,3.2,Delayed
+SHP-2024-0161,Export,2024-06-11,Consumer Goods,Mumbai, India,Sydney, Australia,71000,3550,3.6,On-Time
+SHP-2024-0162,Import,2024-06-12,Electronics,Taipei, Taiwan,Mumbai, India,240000,12000,4.5,On-Time
+SHP-2024-0163,Export,2024-06-13,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,160000,8000,3.8,On-Time
+SHP-2024-0164,Import,2024-06-14,Consumer Goods,Bangkok, Thailand,Mumbai, India,85000,4250,2.9,On-Time
+SHP-2024-0165,Export,2024-06-15,Textiles,Mumbai, India,New York, USA,135000,6750,3.4,On-Time
+SHP-2024-0166,Import,2024-06-16,Industrial Equipment,Genoa, Italy,Mumbai, India,220000,11000,5.0,Delayed
+SHP-2024-0167,Export,2024-06-17,Electronics,Mumbai, India,Los Angeles, USA,180000,9000,3.5,On-Time
+SHP-2024-0168,Import,2024-06-18,Textiles,Istanbul, Turkey,Mumbai, India,96000,4800,3.7,On-Time
+SHP-2024-0169,Export,2024-06-19,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,51000,2550,2.4,On-Time
+SHP-2024-0170,Import,2024-06-20,Electronics,San Francisco, USA,Mumbai, India,250000,12500,4.6,On-Time
+SHP-2024-0171,Export,2024-06-21,Industrial Equipment,Mumbai, India,Durban, South Africa,112000,5600,4.1,On-Time
+SHP-2024-0172,Import,2024-06-22,Consumer Goods,Jakarta, Indonesia,Mumbai, India,61000,3050,3.1,Delayed
+SHP-2024-0173,Export,2024-06-23,Textiles,Mumbai, India,Lagos, Nigeria,78000,3900,3.9,On-Time
+SHP-2024-0174,Import,2024-06-24,Industrial Equipment,Yokohama, Japan,Mumbai, India,350000,17500,5.3,On-Time
+SHP-2024-0175,Export,2024-06-25,Electronics,Mumbai, India,Mexico City, Mexico,138000,6900,4.4,On-Time
+SHP-2024-0176,Import,2024-06-26,Consumer Goods,Manila, Philippines,Mumbai, India,53000,2650,3.3,On-Time
+SHP-2024-0177,Export,2024-06-27,Textiles,Mumbai, India,Cairo, Egypt,63000,3150,2.8,On-Time
+SHP-2024-0178,Import,2024-06-28,Electronics,Helsinki, Finland,Mumbai, India,185000,9250,4.2,Delayed
+SHP-2024-0179,Export,2024-06-29,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,83000,4150,4.8,On-Time
+SHP-2024-0180,Import,2024-06-30,Industrial Equipment,Busan, South Korea,Mumbai, India,310000,15500,5.1,On-Time
+SHP-2024-0181,Export,2024-07-01,Electronics,Mumbai, India,New York, USA,104000,5200,2.7,On-Time
+SHP-2024-0182,Import,2024-07-02,Textiles,Shanghai, China,Mumbai, India,150000,7500,4.1,On-Time
+SHP-2024-0183,Export,2024-07-03,Consumer Goods,Mumbai, India,London, UK,58000,2900,2.4,On-Time
+SHP-2024-0184,Import,2024-07-04,Industrial Equipment,Hamburg, Germany,Mumbai, India,290000,14500,4.8,On-Time
+SHP-2024-0185,Export,2024-07-05,Electronics,Mumbai, India,Tokyo, Japan,122000,6100,3.1,Delayed
+SHP-2024-0186,Import,2024-07-06,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,75000,3750,2.6,On-Time
+SHP-2024-0187,Export,2024-07-07,Textiles,Mumbai, India,Dubai, UAE,95000,4750,2.1,On-Time
+SHP-2024-0188,Import,2024-07-08,Electronics,Seoul, South Korea,Mumbai, India,215000,10750,4.4,On-Time
+SHP-2024-0189,Export,2024-07-09,Industrial Equipment,Mumbai, India,Singapore,84000,4200,2.8,On-Time
+SHP-2024-0190,Import,2024-07-10,Textiles,Dhaka, Bangladesh,Mumbai, India,109000,5450,3.3,On-Time
+SHP-2024-0191,Export,2024-07-11,Consumer Goods,Mumbai, India,Sydney, Australia,74000,3700,3.7,Delayed
+SHP-2024-0192,Import,2024-07-12,Electronics,Taipei, Taiwan,Mumbai, India,245000,12250,4.6,On-Time
+SHP-2024-0193,Export,2024-07-13,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,165000,8250,3.9,On-Time
+SHP-2024-0194,Import,2024-07-14,Consumer Goods,Bangkok, Thailand,Mumbai, India,88000,4400,3.0,On-Time
+SHP-2024-0195,Export,2024-07-15,Textiles,Mumbai, India,New York, USA,140000,7000,3.5,On-Time
+SHP-2024-0196,Import,2024-07-16,Industrial Equipment,Genoa, Italy,Mumbai, India,225000,11250,5.1,On-Time
+SHP-2024-0197,Export,2024-07-17,Electronics,Mumbai, India,Los Angeles, USA,185000,9250,3.6,Delayed
+SHP-2024-0198,Import,2024-07-18,Textiles,Istanbul, Turkey,Mumbai, India,99000,4950,3.8,On-Time
+SHP-2024-0199,Export,2024-07-19,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,54000,2700,2.5,On-Time
+SHP-2024-0200,Import,2024-07-20,Electronics,San Francisco, USA,Mumbai, India,255000,12750,4.7,On-Time
+SHP-2024-0201,Export,2024-07-21,Industrial Equipment,Mumbai, India,Durban, South Africa,115000,5750,4.2,On-Time
+SHP-2024-0202,Import,2024-07-22,Consumer Goods,Jakarta, Indonesia,Mumbai, India,63000,3150,3.2,On-Time
+SHP-2024-0203,Export,2024-07-23,Textiles,Mumbai, India,Lagos, Nigeria,80000,4000,4.0,Delayed
+SHP-2024-0204,Import,2024-07-24,Industrial Equipment,Yokohama, Japan,Mumbai, India,360000,18000,5.4,On-Time
+SHP-2024-0205,Export,2024-07-25,Electronics,Mumbai, India,Mexico City, Mexico,142000,7100,4.5,On-Time
+SHP-2024-0206,Import,2024-07-26,Consumer Goods,Manila, Philippines,Mumbai, India,55000,2750,3.4,On-Time
+SHP-2024-0207,Export,2024-07-27,Textiles,Mumbai, India,Cairo, Egypt,65000,3250,2.9,On-Time
+SHP-2024-0208,Import,2024-07-28,Electronics,Helsinki, Finland,Mumbai, India,190000,9500,4.3,On-Time
+SHP-2024-0209,Export,2024-07-29,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,85000,4250,4.9,Delayed
+SHP-2024-0210,Import,2024-07-30,Industrial Equipment,Busan, South Korea,Mumbai, India,315000,15750,5.2,On-Time
+SHP-2024-0211,Export,2024-07-31,Electronics,Mumbai, India,New York, USA,107000,5350,2.8,On-Time
+SHP-2024-0212,Import,2024-08-01,Textiles,Shanghai, China,Mumbai, India,155000,7750,4.2,On-Time
+SHP-2024-0213,Export,2024-08-02,Consumer Goods,Mumbai, India,London, UK,60000,3000,2.5,On-Time
+SHP-2024-0214,Import,2024-08-03,Industrial Equipment,Hamburg, Germany,Mumbai, India,295000,14750,4.9,On-Time
+SHP-2024-0215,Export,2024-08-04,Electronics,Mumbai, India,Tokyo, Japan,125000,6250,3.2,On-Time
+SHP-2024-0216,Import,2024-08-05,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,77000,3850,2.7,Delayed
+SHP-2024-0217,Export,2024-08-06,Textiles,Mumbai, India,Dubai, UAE,98000,4900,2.2,On-Time
+SHP-2024-0218,Import,2024-08-07,Electronics,Seoul, South Korea,Mumbai, India,220000,11000,4.5,On-Time
+SHP-2024-0219,Export,2024-08-08,Industrial Equipment,Mumbai, India,Singapore,87000,4350,2.9,On-Time
+SHP-2024-0220,Import,2024-08-09,Textiles,Dhaka, Bangladesh,Mumbai, India,112000,5600,3.4,On-Time
+SHP-2024-0221,Export,2024-08-10,Consumer Goods,Mumbai, India,Sydney, Australia,77000,3850,3.8,On-Time
+SHP-2024-0222,Import,2024-08-11,Electronics,Taipei, Taiwan,Mumbai, India,250000,12500,4.7,Delayed
+SHP-2024-0223,Export,2024-08-12,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,170000,8500,4.0,On-Time
+SHP-2024-0224,Import,2024-08-13,Consumer Goods,Bangkok, Thailand,Mumbai, India,90000,4500,3.1,On-Time
+SHP-2024-0225,Export,2024-08-14,Textiles,Mumbai, India,New York, USA,145000,7250,3.6,On-Time
+SHP-2024-0226,Import,2024-08-15,Industrial Equipment,Genoa, Italy,Mumbai, India,230000,11500,5.2,On-Time
+SHP-2024-0227,Export,2024-08-16,Electronics,Mumbai, India,Los Angeles, USA,190000,9500,3.7,On-Time
+SHP-2024-0228,Import,2024-08-17,Textiles,Istanbul, Turkey,Mumbai, India,102000,5100,3.9,Delayed
+SHP-2024-0229,Export,2024-08-18,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,56000,2800,2.6,On-Time
+SHP-2024-0230,Import,2024-08-19,Electronics,San Francisco, USA,Mumbai, India,260000,13000,4.8,On-Time
+SHP-2024-0231,Export,2024-08-20,Industrial Equipment,Mumbai, India,Durban, South Africa,118000,5900,4.3,On-Time
+SHP-2024-0232,Import,2024-08-21,Consumer Goods,Jakarta, Indonesia,Mumbai, India,65000,3250,3.3,On-Time
+SHP-2024-0233,Export,2024-08-22,Textiles,Mumbai, India,Lagos, Nigeria,82000,4100,4.1,On-Time
+SHP-2024-0234,Import,2024-08-23,Industrial Equipment,Yokohama, Japan,Mumbai, India,370000,18500,5.5,Delayed
+SHP-2024-0235,Export,2024-08-24,Electronics,Mumbai, India,Mexico City, Mexico,145000,7250,4.6,On-Time
+SHP-2024-0236,Import,2024-08-25,Consumer Goods,Manila, Philippines,Mumbai, India,57000,2850,3.5,On-Time
+SHP-2024-0237,Export,2024-08-26,Textiles,Mumbai, India,Cairo, Egypt,67000,3350,3.0,On-Time
+SHP-2024-0238,Import,2024-08-27,Electronics,Helsinki, Finland,Mumbai, India,195000,9750,4.4,On-Time
+SHP-2024-0239,Export,2024-08-28,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,87000,4350,5.0,On-Time
+SHP-2024-0240,Import,2024-08-29,Industrial Equipment,Busan, South Korea,Mumbai, India,320000,16000,5.3,Delayed
+SHP-2024-0241,Export,2024-08-30,Electronics,Mumbai, India,New York, USA,110000,5500,2.9,On-Time
+SHP-2024-0242,Import,2024-08-31,Textiles,Shanghai, China,Mumbai, India,160000,8000,4.3,On-Time
+SHP-2024-0243,Export,2024-09-01,Consumer Goods,Mumbai, India,London, UK,62000,3100,2.6,On-Time
+SHP-2024-0244,Import,2024-09-02,Industrial Equipment,Hamburg, Germany,Mumbai, India,300000,15000,5.0,On-Time
+SHP-2024-0245,Export,2024-09-03,Electronics,Mumbai, India,Tokyo, Japan,128000,6400,3.3,On-Time
+SHP-2024-0246,Import,2024-09-04,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,79000,3950,2.8,On-Time
+SHP-2024-0247,Export,2024-09-05,Textiles,Mumbai, India,Dubai, UAE,100000,5000,2.3,Delayed
+SHP-2024-0248,Import,2024-09-06,Electronics,Seoul, South Korea,Mumbai, India,225000,11250,4.6,On-Time
+SHP-2024-0249,Export,2024-09-07,Industrial Equipment,Mumbai, India,Singapore,90000,4500,3.0,On-Time
+SHP-2024-0250,Import,2024-09-08,Textiles,Dhaka, Bangladesh,Mumbai, India,115000,5750,3.5,On-Time
+SHP-2024-0251,Export,2024-09-09,Consumer Goods,Mumbai, India,Sydney, Australia,80000,4000,3.9,On-Time
+SHP-2024-0252,Import,2024-09-10,Electronics,Taipei, Taiwan,Mumbai, India,255000,12750,4.8,On-Time
+SHP-2024-0253,Export,2024-09-11,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,175000,8750,4.1,Delayed
+SHP-2024-0254,Import,2024-09-12,Consumer Goods,Bangkok, Thailand,Mumbai, India,92000,4600,3.2,On-Time
+SHP-2024-0255,Export,2024-09-13,Textiles,Mumbai, India,New York, USA,150000,7500,3.7,On-Time
+SHP-2024-0256,Import,2024-09-14,Industrial Equipment,Genoa, Italy,Mumbai, India,235000,11750,5.3,On-Time
+SHP-2024-0257,Export,2024-09-15,Electronics,Mumbai, India,Los Angeles, USA,195000,9750,3.8,On-Time
+SHP-2024-0258,Import,2024-09-16,Textiles,Istanbul, Turkey,Mumbai, India,105000,5250,4.0,On-Time
+SHP-2024-0259,Export,2024-09-17,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,58000,2900,2.7,Delayed
+SHP-2024-0260,Import,2024-09-18,Electronics,San Francisco, USA,Mumbai, India,265000,13250,4.9,On-Time
+SHP-2024-0261,Export,2024-09-19,Industrial Equipment,Mumbai, India,Durban, South Africa,122000,6100,4.4,On-Time
+SHP-2024-0262,Import,2024-09-20,Consumer Goods,Jakarta, Indonesia,Mumbai, India,67000,3350,3.4,On-Time
+SHP-2024-0263,Export,2024-09-21,Textiles,Mumbai, India,Lagos, Nigeria,85000,4250,4.2,On-Time
+SHP-2024-0264,Import,2024-09-22,Industrial Equipment,Yokohama, Japan,Mumbai, India,380000,19000,5.6,On-Time
+SHP-2024-0265,Export,2024-09-23,Electronics,Mumbai, India,Mexico City, Mexico,148000,7400,4.7,Delayed
+SHP-2024-0266,Import,2024-09-24,Consumer Goods,Manila, Philippines,Mumbai, India,59000,2950,3.6,On-Time
+SHP-2024-0267,Export,2024-09-25,Textiles,Mumbai, India,Cairo, Egypt,69000,3450,3.1,On-Time
+SHP-2024-0268,Import,2024-09-26,Electronics,Helsinki, Finland,Mumbai, India,200000,10000,4.5,On-Time
+SHP-2024-0269,Export,2024-09-27,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,90000,4500,5.1,On-Time
+SHP-2024-0270,Import,2024-09-28,Industrial Equipment,Busan, South Korea,Mumbai, India,325000,16250,5.4,On-Time
+SHP-2024-0271,Export,2024-09-29,Electronics,Mumbai, India,New York, USA,113000,5650,3.0,Delayed
+SHP-2024-0272,Import,2024-09-30,Textiles,Shanghai, China,Mumbai, India,165000,8250,4.4,On-Time
+SHP-2024-0273,Export,2024-10-01,Consumer Goods,Mumbai, India,London, UK,64000,3200,2.7,On-Time
+SHP-2024-0274,Import,2024-10-02,Industrial Equipment,Hamburg, Germany,Mumbai, India,305000,15250,5.1,On-Time
+SHP-2024-0275,Export,2024-10-03,Electronics,Mumbai, India,Tokyo, Japan,132000,6600,3.4,On-Time
+SHP-2024-0276,Import,2024-10-04,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,81000,4050,2.9,On-Time
+SHP-2024-0277,Export,2024-10-05,Textiles,Mumbai, India,Dubai, UAE,103000,5150,2.4,On-Time
+SHP-2024-0278,Import,2024-10-06,Electronics,Seoul, South Korea,Mumbai, India,230000,11500,4.7,Delayed
+SHP-2024-0279,Export,2024-10-07,Industrial Equipment,Mumbai, India,Singapore,93000,4650,3.1,On-Time
+SHP-2024-0280,Import,2024-10-08,Textiles,Dhaka, Bangladesh,Mumbai, India,118000,5900,3.6,On-Time
+SHP-2024-0281,Export,2024-10-09,Consumer Goods,Mumbai, India,Sydney, Australia,83000,4150,4.0,On-Time
+SHP-2024-0282,Import,2024-10-10,Electronics,Taipei, Taiwan,Mumbai, India,260000,13000,4.9,On-Time
+SHP-2024-0283,Export,2024-10-11,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,180000,9000,4.2,On-Time
+SHP-2024-0284,Import,2024-10-12,Consumer Goods,Bangkok, Thailand,Mumbai, India,95000,4750,3.3,Delayed
+SHP-2024-0285,Export,2024-10-13,Textiles,Mumbai, India,New York, USA,155000,7750,3.8,On-Time
+SHP-2024-0286,Import,2024-10-14,Industrial Equipment,Genoa, Italy,Mumbai, India,240000,12000,5.4,On-Time
+SHP-2024-0287,Export,2024-10-15,Electronics,Mumbai, India,Los Angeles, USA,200000,10000,3.9,On-Time
+SHP-2024-0288,Import,2024-10-16,Textiles,Istanbul, Turkey,Mumbai, India,108000,5400,4.1,On-Time
+SHP-2024-0289,Export,2024-10-17,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,60000,3000,2.8,On-Time
+SHP-2024-0290,Import,2024-10-18,Electronics,San Francisco, USA,Mumbai, India,270000,13500,5.0,Delayed
+SHP-2024-0291,Export,2024-10-19,Industrial Equipment,Mumbai, India,Durban, South Africa,125000,6250,4.5,On-Time
+SHP-2024-0292,Import,2024-10-20,Consumer Goods,Jakarta, Indonesia,Mumbai, India,69000,3450,3.5,On-Time
+SHP-2024-0293,Export,2024-10-21,Textiles,Mumbai, India,Lagos, Nigeria,88000,4400,4.3,On-Time
+SHP-2024-0294,Import,2024-10-22,Industrial Equipment,Yokohama, Japan,Mumbai, India,390000,19500,5.7,On-Time
+SHP-2024-0295,Export,2024-10-23,Electronics,Mumbai, India,Mexico City, Mexico,152000,7600,4.8,On-Time
+SHP-2024-0296,Import,2024-10-24,Consumer Goods,Manila, Philippines,Mumbai, India,61000,3050,3.7,Delayed
+SHP-2024-0297,Export,2024-10-25,Textiles,Mumbai, India,Cairo, Egypt,71000,3550,3.2,On-Time
+SHP-2024-0298,Import,2024-10-26,Electronics,Helsinki, Finland,Mumbai, India,205000,10250,4.6,On-Time
+SHP-2024-0299,Export,2024-10-27,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,93000,4650,5.2,On-Time
+SHP-2024-0300,Import,2024-10-28,Industrial Equipment,Busan, South Korea,Mumbai, India,330000,16500,5.5,On-Time
+SHP-2024-0301,Export,2024-10-29,Electronics,Mumbai, India,New York, USA,116000,5800,3.1,On-Time
+SHP-2024-0302,Import,2024-10-30,Textiles,Shanghai, China,Mumbai, India,170000,8500,4.5,Delayed
+SHP-2024-0303,Export,2024-10-31,Consumer Goods,Mumbai, India,London, UK,66000,3300,2.8,On-Time
+SHP-2024-0304,Import,2024-11-01,Industrial Equipment,Hamburg, Germany,Mumbai, India,310000,15500,5.2,On-Time
+SHP-2024-0305,Export,2024-11-02,Electronics,Mumbai, India,Tokyo, Japan,135000,6750,3.5,On-Time
+SHP-2024-0306,Import,2024-11-03,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,83000,4150,3.0,On-Time
+SHP-2024-0307,Export,2024-11-04,Textiles,Mumbai, India,Dubai, UAE,106000,5300,2.5,On-Time
+SHP-2024-0308,Import,2024-11-05,Electronics,Seoul, South Korea,Mumbai, India,235000,11750,4.8,On-Time
+SHP-2024-0309,Export,2024-11-06,Industrial Equipment,Mumbai, India,Singapore,96000,4800,3.2,Delayed
+SHP-2024-0310,Import,2024-11-07,Textiles,Dhaka, Bangladesh,Mumbai, India,122000,6100,3.7,On-Time
+SHP-2024-0311,Export,2024-11-08,Consumer Goods,Mumbai, India,Sydney, Australia,86000,4300,4.1,On-Time
+SHP-2024-0312,Import,2024-11-09,Electronics,Taipei, Taiwan,Mumbai, India,265000,13250,5.0,On-Time
+SHP-2024-0313,Export,2024-11-10,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,185000,9250,4.3,On-Time
+SHP-2024-0314,Import,2024-11-11,Consumer Goods,Bangkok, Thailand,Mumbai, India,98000,4900,3.4,On-Time
+SHP-2024-0315,Export,2024-11-12,Textiles,Mumbai, India,New York, USA,160000,8000,3.9,Delayed
+SHP-2024-0316,Import,2024-11-13,Industrial Equipment,Genoa, Italy,Mumbai, India,245000,12250,5.5,On-Time
+SHP-2024-0317,Export,2024-11-14,Electronics,Mumbai, India,Los Angeles, USA,205000,10250,4.0,On-Time
+SHP-2024-0318,Import,2024-11-15,Textiles,Istanbul, Turkey,Mumbai, India,112000,5600,4.2,On-Time
+SHP-2024-0319,Export,2024-11-16,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,63000,3150,2.9,On-Time
+SHP-2024-0320,Import,2024-11-17,Electronics,San Francisco, USA,Mumbai, India,275000,13750,5.1,On-Time
+SHP-2024-0321,Export,2024-11-18,Industrial Equipment,Mumbai, India,Durban, South Africa,128000,6400,4.6,Delayed
+SHP-2024-0322,Import,2024-11-19,Consumer Goods,Jakarta, Indonesia,Mumbai, India,71000,3550,3.6,On-Time
+SHP-2024-0323,Export,2024-11-20,Textiles,Mumbai, India,Lagos, Nigeria,90000,4500,4.4,On-Time
+SHP-2024-0324,Import,2024-11-21,Industrial Equipment,Yokohama, Japan,Mumbai, India,400000,20000,5.8,On-Time
+SHP-2024-0325,Export,2024-11-22,Electronics,Mumbai, India,Mexico City, Mexico,155000,7750,4.9,On-Time
+SHP-2024-0326,Import,2024-11-23,Consumer Goods,Manila, Philippines,Mumbai, India,63000,3150,3.8,On-Time
+SHP-2024-0327,Export,2024-11-24,Textiles,Mumbai, India,Cairo, Egypt,73000,3650,3.3,Delayed
+SHP-2024-0328,Import,2024-11-25,Electronics,Helsinki, Finland,Mumbai, India,210000,10500,4.7,On-Time
+SHP-2024-0329,Export,2024-11-26,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,96000,4800,5.3,On-Time
+SHP-2024-0330,Import,2024-11-27,Industrial Equipment,Busan, South Korea,Mumbai, India,335000,16750,5.6,On-Time
+SHP-2024-0331,Export,2024-11-28,Electronics,Mumbai, India,New York, USA,119000,5950,3.2,On-Time
+SHP-2024-0332,Import,2024-11-29,Textiles,Shanghai, China,Mumbai, India,175000,8750,4.6,On-Time
+SHP-2024-0333,Export,2024-11-30,Consumer Goods,Mumbai, India,London, UK,68000,3400,2.9,Delayed
+SHP-2024-0334,Import,2024-12-01,Industrial Equipment,Hamburg, Germany,Mumbai, India,315000,15750,5.3,On-Time
+SHP-2024-0335,Export,2024-12-02,Electronics,Mumbai, India,Tokyo, Japan,138000,6900,3.6,On-Time
+SHP-2024-0336,Import,2024-12-03,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,85000,4250,3.1,On-Time
+SHP-2024-0337,Export,2024-12-04,Textiles,Mumbai, India,Dubai, UAE,109000,5450,2.6,On-Time
+SHP-2024-0338,Import,2024-12-05,Electronics,Seoul, South Korea,Mumbai, India,240000,12000,4.9,On-Time
+SHP-2024-0339,Export,2024-12-06,Industrial Equipment,Mumbai, India,Singapore,99000,4950,3.3,On-Time
+SHP-2024-0340,Import,2024-12-07,Textiles,Dhaka, Bangladesh,Mumbai, India,125000,6250,3.8,Delayed
+SHP-2024-0341,Export,2024-12-08,Consumer Goods,Mumbai, India,Sydney, Australia,89000,4450,4.2,On-Time
+SHP-2024-0342,Import,2024-12-09,Electronics,Taipei, Taiwan,Mumbai, India,270000,13500,5.1,On-Time
+SHP-2024-0343,Export,2024-12-10,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,190000,9500,4.4,On-Time
+SHP-2024-0344,Import,2024-12-11,Consumer Goods,Bangkok, Thailand,Mumbai, India,101000,5050,3.5,On-Time
+SHP-2024-0345,Export,2024-12-12,Textiles,Mumbai, India,New York, USA,165000,8250,4.0,On-Time
+SHP-2024-0346,Import,2024-12-13,Industrial Equipment,Genoa, Italy,Mumbai, India,250000,12500,5.6,Delayed
+SHP-2024-0347,Export,2024-12-14,Electronics,Mumbai, India,Los Angeles, USA,210000,10500,4.1,On-Time
+SHP-2024-0348,Import,2024-12-15,Textiles,Istanbul, Turkey,Mumbai, India,115000,5750,4.3,On-Time
+SHP-2024-0349,Export,2024-12-16,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,65000,3250,3.0,On-Time
+SHP-2024-0350,Import,2024-12-17,Electronics,San Francisco, USA,Mumbai, India,280000,14000,5.2,On-Time
+SHP-2024-0351,Export,2024-12-18,Industrial Equipment,Mumbai, India,Durban, South Africa,132000,6600,4.7,On-Time
+SHP-2024-0352,Import,2024-12-19,Consumer Goods,Jakarta, Indonesia,Mumbai, India,73000,3650,3.7,Delayed
+SHP-2024-0353,Export,2024-12-20,Textiles,Mumbai, India,Lagos, Nigeria,93000,4650,4.5,On-Time
+SHP-2024-0354,Import,2024-12-21,Industrial Equipment,Yokohama, Japan,Mumbai, India,410000,20500,5.9,On-Time
+SHP-2024-0355,Export,2024-12-22,Electronics,Mumbai, India,Mexico City, Mexico,158000,7900,5.0,On-Time
+SHP-2024-0356,Import,2024-12-23,Consumer Goods,Manila, Philippines,Mumbai, India,65000,3250,3.9,On-Time
+SHP-2024-0357,Export,2024-12-24,Textiles,Mumbai, India,Cairo, Egypt,75000,3750,3.4,On-Time
+SHP-2024-0358,Import,2024-12-25,Electronics,Helsinki, Finland,Mumbai, India,215000,10750,4.8,Delayed
+SHP-2024-0359,Export,2024-12-26,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,99000,4950,5.4,On-Time
+SHP-2024-0360,Import,2024-12-27,Industrial Equipment,Busan, South Korea,Mumbai, India,340000,17000,5.7,On-Time
+SHP-2024-0361,Export,2024-12-28,Electronics,Mumbai, India,New York, USA,122000,6100,3.3,On-Time
+SHP-2024-0362,Import,2024-12-29,Textiles,Shanghai, China,Mumbai, India,180000,9000,4.7,On-Time
+SHP-2024-0363,Export,2024-12-30,Consumer Goods,Mumbai, India,London, UK,70000,3500,3.0,On-Time
+SHP-2024-0364,Import,2024-12-31,Industrial Equipment,Hamburg, Germany,Mumbai, India,320000,16000,5.4,Delayed
+SHP-2025-0001,Export,2025-01-02,Electronics,Mumbai, India,New York, USA,86500,4325,2.1,On-Time
+SHP-2025-0002,Import,2025-01-03,Textiles,Shanghai, China,Mumbai, India,122000,6100,3.5,On-Time
+SHP-2025-0003,Export,2025-01-04,Consumer Goods,Mumbai, India,London, UK,46500,2325,1.8,On-Time
+SHP-2025-0004,Import,2025-01-05,Industrial Equipment,Hamburg, Germany,Mumbai, India,255000,12750,4.2,Delayed
+SHP-2025-0005,Export,2025-01-06,Electronics,Mumbai, India,Tokyo, Japan,97000,4850,2.5,On-Time
+SHP-2025-0006,Import,2025-01-07,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,61500,3075,2.0,On-Time
+SHP-2025-0007,Export,2025-01-08,Textiles,Mumbai, India,Dubai, UAE,76500,3825,1.5,On-Time
+SHP-2025-0008,Import,2025-01-09,Electronics,Seoul, South Korea,Mumbai, India,183000,9150,3.8,On-Time
+SHP-2025-0009,Export,2025-01-10,Industrial Equipment,Mumbai, India,Singapore,66500,3325,2.2,On-Time
+SHP-2025-0010,Import,2025-01-11,Textiles,Dhaka, Bangladesh,Mumbai, India,91500,4575,2.7,On-Time
+SHP-2025-0011,Export,2025-01-12,Consumer Goods,Mumbai, India,Sydney, Australia,56500,2825,3.1,Delayed
+SHP-2025-0012,Import,2025-01-13,Electronics,Taipei, Taiwan,Mumbai, India,214000,10700,4.0,On-Time
+SHP-2025-0013,Export,2025-01-14,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,133000,6650,3.3,On-Time
+SHP-2025-0014,Import,2025-01-15,Consumer Goods,Bangkok, Thailand,Mumbai, India,71500,3575,2.4,On-Time
+SHP-2025-0015,Export,2025-01-16,Textiles,Mumbai, India,New York, USA,112000,5600,2.9,On-Time
+SHP-2025-0016,Import,2025-01-17,Industrial Equipment,Genoa, Italy,Mumbai, India,194000,9700,4.5,On-Time
+SHP-2025-0017,Export,2025-01-18,Electronics,Mumbai, India,Los Angeles, USA,153000,7650,3.0,On-Time
+SHP-2025-0018,Import,2025-01-19,Textiles,Istanbul, Turkey,Mumbai, India,81500,4075,3.2,Delayed
+SHP-2025-0019,Export,2025-01-20,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,36500,1825,1.9,On-Time
+SHP-2025-0020,Import,2025-01-21,Electronics,San Francisco, USA,Mumbai, India,224000,11200,4.1,On-Time
+SHP-2025-0021,Export,2025-01-22,Industrial Equipment,Mumbai, India,Durban, South Africa,97000,4850,3.6,On-Time
+SHP-2025-0022,Import,2025-01-23,Consumer Goods,Jakarta, Indonesia,Mumbai, India,49500,2475,2.6,On-Time
+SHP-2025-0023,Export,2025-01-24,Textiles,Mumbai, India,Lagos, Nigeria,66500,3325,3.4,On-Time
+SHP-2025-0024,Import,2025-01-25,Industrial Equipment,Yokohama, Japan,Mumbai, India,305000,15250,4.8,Delayed
+SHP-2025-0025,Export,2025-01-26,Electronics,Mumbai, India,Mexico City, Mexico,122000,6100,3.9,On-Time
+SHP-2025-0026,Import,2025-01-27,Consumer Goods,Manila, Philippines,Mumbai, India,41500,2075,2.8,On-Time
+SHP-2025-0027,Export,2025-01-28,Textiles,Mumbai, India,Cairo, Egypt,51500,2575,2.3,On-Time
+SHP-2025-0028,Import,2025-01-29,Electronics,Helsinki, Finland,Mumbai, India,163000,8150,3.7,On-Time
+SHP-2025-0029,Export,2025-01-30,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,71500,3575,4.3,On-Time
+SHP-2025-0030,Import,2025-01-31,Industrial Equipment,Busan, South Korea,Mumbai, India,284000,14200,4.6,On-Time
+SHP-2025-0031,Export,2025-02-01,Electronics,Mumbai, India,New York, USA,89500,4475,2.2,On-Time
+SHP-2025-0032,Import,2025-02-02,Textiles,Shanghai, China,Mumbai, India,127000,6350,3.6,On-Time
+SHP-2025-0033,Export,2025-02-03,Consumer Goods,Mumbai, India,London, UK,48500,2425,1.9,Delayed
+SHP-2025-0034,Import,2025-02-04,Industrial Equipment,Hamburg, Germany,Mumbai, India,265000,13250,4.3,On-Time
+SHP-2025-0035,Export,2025-02-05,Electronics,Mumbai, India,Tokyo, Japan,101000,5050,2.6,On-Time
+SHP-2025-0036,Import,2025-02-06,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,64500,3225,2.1,On-Time
+SHP-2025-0037,Export,2025-02-07,Textiles,Mumbai, India,Dubai, UAE,80500,4025,1.6,On-Time
+SHP-2025-0038,Import,2025-02-08,Electronics,Seoul, South Korea,Mumbai, India,190000,9500,3.9,On-Time
+SHP-2025-0039,Export,2025-02-09,Industrial Equipment,Mumbai, India,Singapore,70500,3525,2.3,Delayed
+SHP-2025-0040,Import,2025-02-10,Textiles,Dhaka, Bangladesh,Mumbai, India,95500,4775,2.8,On-Time
+SHP-2025-0041,Export,2025-02-11,Consumer Goods,Mumbai, India,Sydney, Australia,60500,3025,3.2,On-Time
+SHP-2025-0042,Import,2025-02-12,Electronics,Taipei, Taiwan,Mumbai, India,222000,11100,4.1,On-Time
+SHP-2025-0043,Export,2025-02-13,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,141000,7050,3.4,On-Time
+SHP-2025-0044,Import,2025-02-14,Consumer Goods,Bangkok, Thailand,Mumbai, India,75500,3775,2.5,On-Time
+SHP-2025-0045,Export,2025-02-15,Textiles,Mumbai, India,New York, USA,117000,5850,3.0,Delayed
+SHP-2025-0046,Import,2025-02-16,Industrial Equipment,Genoa, Italy,Mumbai, India,202000,10100,4.6,On-Time
+SHP-2025-0047,Export,2025-02-17,Electronics,Mumbai, India,Los Angeles, USA,161000,8050,3.1,On-Time
+SHP-2025-0048,Import,2025-02-18,Textiles,Istanbul, Turkey,Mumbai, India,85500,4275,3.3,On-Time
+SHP-2025-0049,Export,2025-02-19,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,40500,2025,2.0,On-Time
+SHP-2025-0050,Import,2025-02-20,Electronics,San Francisco, USA,Mumbai, India,232000,11600,4.2,On-Time
+SHP-2025-0051,Export,2025-02-21,Industrial Equipment,Mumbai, India,Durban, South Africa,100000,5000,3.7,On-Time
+SHP-2025-0052,Import,2025-02-22,Consumer Goods,Jakarta, Indonesia,Mumbai, India,52500,2625,2.7,On-Time
+SHP-2025-0053,Export,2025-02-23,Textiles,Mumbai, India,Lagos, Nigeria,69500,3475,3.5,Delayed
+SHP-2025-0054,Import,2025-02-24,Industrial Equipment,Yokohama, Japan,Mumbai, India,315000,15750,4.9,On-Time
+SHP-2025-0055,Export,2025-02-25,Electronics,Mumbai, India,Mexico City, Mexico,126000,6300,4.0,On-Time
+SHP-2025-0056,Import,2025-02-26,Consumer Goods,Manila, Philippines,Mumbai, India,44500,2225,2.9,On-Time
+SHP-2025-0057,Export,2025-02-27,Textiles,Mumbai, India,Cairo, Egypt,54500,2725,2.4,On-Time
+SHP-2025-0058,Import,2025-02-28,Electronics,Helsinki, Finland,Mumbai, India,168000,8400,3.8,On-Time
+SHP-2025-0059,Export,2025-03-01,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,74500,3725,4.4,Delayed
+SHP-2025-0060,Import,2025-03-02,Industrial Equipment,Busan, South Korea,Mumbai, India,292000,14600,4.7,On-Time
+SHP-2025-0061,Export,2025-03-03,Electronics,Mumbai, India,New York, USA,93500,4675,2.3,On-Time
+SHP-2025-0062,Import,2025-03-04,Textiles,Shanghai, China,Mumbai, India,132000,6600,3.7,On-Time
+SHP-2025-0063,Export,2025-03-05,Consumer Goods,Mumbai, India,London, UK,51500,2575,2.0,On-Time
+SHP-2025-0064,Import,2025-03-06,Industrial Equipment,Hamburg, Germany,Mumbai, India,275000,13750,4.4,On-Time
+SHP-2025-0065,Export,2025-03-07,Electronics,Mumbai, India,Tokyo, Japan,107000,5350,2.7,On-Time
+SHP-2025-0066,Import,2025-03-08,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,67500,3375,2.2,Delayed
+SHP-2025-0067,Export,2025-03-09,Textiles,Mumbai, India,Dubai, UAE,84500,4225,1.7,On-Time
+SHP-2025-0068,Import,2025-03-10,Electronics,Seoul, South Korea,Mumbai, India,198000,9900,4.0,On-Time
+SHP-2025-0069,Export,2025-03-11,Industrial Equipment,Mumbai, India,Singapore,73500,3675,2.4,On-Time
+SHP-2025-0070,Import,2025-03-12,Textiles,Dhaka, Bangladesh,Mumbai, India,99500,4975,2.9,On-Time
+SHP-2025-0071,Export,2025-03-13,Consumer Goods,Mumbai, India,Sydney, Australia,63500,3175,3.3,On-Time
+SHP-2025-0072,Import,2025-03-14,Electronics,Taipei, Taiwan,Mumbai, India,229000,11450,4.2,Delayed
+SHP-2025-0073,Export,2025-03-15,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,148000,7400,3.5,On-Time
+SHP-2025-0074,Import,2025-03-16,Consumer Goods,Bangkok, Thailand,Mumbai, India,79500,3975,2.6,On-Time
+SHP-2025-0075,Export,2025-03-17,Textiles,Mumbai, India,New York, USA,122000,6100,3.1,On-Time
+SHP-2025-0076,Import,2025-03-18,Industrial Equipment,Genoa, Italy,Mumbai, India,209000,10450,4.7,On-Time
+SHP-2025-0077,Export,2025-03-19,Electronics,Mumbai, India,Los Angeles, USA,168000,8400,3.2,On-Time
+SHP-2025-0078,Import,2025-03-20,Textiles,Istanbul, Turkey,Mumbai, India,89500,4475,3.4,On-Time
+SHP-2025-0079,Export,2025-03-21,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,43500,2175,2.1,Delayed
+SHP-2025-0080,Import,2025-03-22,Electronics,San Francisco, USA,Mumbai, India,239000,11950,4.3,On-Time
+SHP-2025-0081,Export,2025-03-23,Industrial Equipment,Mumbai, India,Durban, South Africa,104000,5200,3.8,On-Time
+SHP-2025-0082,Import,2025-03-24,Consumer Goods,Jakarta, Indonesia,Mumbai, India,55500,2775,2.8,On-Time
+SHP-2025-0083,Export,2025-03-25,Textiles,Mumbai, India,Lagos, Nigeria,72500,3625,3.6,On-Time
+SHP-2025-0084,Import,2025-03-26,Industrial Equipment,Yokohama, Japan,Mumbai, India,325000,16250,5.0,On-Time
+SHP-2025-0085,Export,2025-03-27,Electronics,Mumbai, India,Mexico City, Mexico,130000,6500,4.1,Delayed
+SHP-2025-0086,Import,2025-03-28,Consumer Goods,Manila, Philippines,Mumbai, India,47500,2375,3.0,On-Time
+SHP-2025-0087,Export,2025-03-29,Textiles,Mumbai, India,Cairo, Egypt,57500,2875,2.5,On-Time
+SHP-2025-0088,Import,2025-03-30,Electronics,Helsinki, Finland,Mumbai, India,173000,8650,3.9,On-Time
+SHP-2025-0089,Export,2025-03-31,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,77500,3875,4.5,On-Time
+SHP-2025-0090,Import,2025-04-01,Industrial Equipment,Busan, South Korea,Mumbai, India,299000,14950,4.8,On-Time
+SHP-2025-0091,Export,2025-04-02,Electronics,Mumbai, India,New York, USA,96500,4825,2.4,On-Time
+SHP-2025-0092,Import,2025-04-03,Textiles,Shanghai, China,Mumbai, India,137000,6850,3.8,Delayed
+SHP-2025-0093,Export,2025-04-04,Consumer Goods,Mumbai, India,London, UK,53500,2675,2.1,On-Time
+SHP-2025-0094,Import,2025-04-05,Industrial Equipment,Hamburg, Germany,Mumbai, India,279000,13950,4.5,On-Time
+SHP-2025-0095,Export,2025-04-06,Electronics,Mumbai, India,Tokyo, Japan,112000,5600,2.8,On-Time
+SHP-2025-0096,Import,2025-04-07,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,69500,3475,2.3,On-Time
+SHP-2025-0097,Export,2025-04-08,Textiles,Mumbai, India,Dubai, UAE,87500,4375,1.8,On-Time
+SHP-2025-0098,Import,2025-04-09,Electronics,Seoul, South Korea,Mumbai, India,203000,10150,4.1,Delayed
+SHP-2025-0099,Export,2025-04-10,Industrial Equipment,Mumbai, India,Singapore,76500,3825,2.5,On-Time
+SHP-2025-0100,Import,2025-04-11,Textiles,Dhaka, Bangladesh,Mumbai, India,101000,5050,3.0,On-Time
+SHP-2025-0101,Export,2025-04-12,Consumer Goods,Mumbai, India,Sydney, Australia,66500,3325,3.4,On-Time
+SHP-2025-0102,Import,2025-04-13,Electronics,Taipei, Taiwan,Mumbai, India,233000,11650,4.3,On-Time
+SHP-2025-0103,Export,2025-04-14,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,151000,7550,3.6,On-Time
+SHP-2025-0104,Import,2025-04-15,Consumer Goods,Bangkok, Thailand,Mumbai, India,81500,4075,2.7,Delayed
+SHP-2025-0105,Export,2025-04-16,Textiles,Mumbai, India,New York, USA,127000,6350,3.2,On-Time
+SHP-2025-0106,Import,2025-04-17,Industrial Equipment,Genoa, Italy,Mumbai, India,213000,10650,4.8,On-Time
+SHP-2025-0107,Export,2025-04-18,Electronics,Mumbai, India,Los Angeles, USA,171000,8550,3.3,On-Time
+SHP-2025-0108,Import,2025-04-19,Textiles,Istanbul, Turkey,Mumbai, India,91500,4575,3.5,On-Time
+SHP-2025-0109,Export,2025-04-20,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,46500,2325,2.2,On-Time
+SHP-2025-0110,Import,2025-04-21,Electronics,San Francisco, USA,Mumbai, India,243000,12150,4.4,Delayed
+SHP-2025-0111,Export,2025-04-22,Industrial Equipment,Mumbai, India,Durban, South Africa,106000,5300,3.9,On-Time
+SHP-2025-0112,Import,2025-04-23,Consumer Goods,Jakarta, Indonesia,Mumbai, India,57500,2875,2.9,On-Time
+SHP-2025-0113,Export,2025-04-24,Textiles,Mumbai, India,Lagos, Nigeria,74500,3725,3.7,On-Time
+SHP-2025-0114,Import,2025-04-25,Industrial Equipment,Yokohama, Japan,Mumbai, India,335000,16750,5.1,On-Time
+SHP-2025-0115,Export,2025-04-26,Electronics,Mumbai, India,Mexico City, Mexico,134000,6700,4.2,On-Time
+SHP-2025-0116,Import,2025-04-27,Consumer Goods,Manila, Philippines,Mumbai, India,49500,2475,3.1,Delayed
+SHP-2025-0117,Export,2025-04-28,Textiles,Mumbai, India,Cairo, Egypt,59500,2975,2.6,On-Time
+SHP-2025-0118,Import,2025-04-29,Electronics,Helsinki, Finland,Mumbai, India,177000,8850,4.0,On-Time
+SHP-2025-0119,Export,2025-04-30,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,79500,3975,4.6,On-Time
+SHP-2025-0120,Import,2025-05-01,Industrial Equipment,Busan, South Korea,Mumbai, India,303000,15150,4.9,On-Time
+SHP-2025-0121,Export,2025-05-02,Electronics,Mumbai, India,New York, USA,99500,4975,2.5,On-Time
+SHP-2025-0122,Import,2025-05-03,Textiles,Shanghai, China,Mumbai, India,142000,7100,3.9,On-Time
+SHP-2025-0123,Export,2025-05-04,Consumer Goods,Mumbai, India,London, UK,55500,2775,2.2,Delayed
+SHP-2025-0124,Import,2025-05-05,Industrial Equipment,Hamburg, Germany,Mumbai, India,283000,14150,4.6,On-Time
+SHP-2025-0125,Export,2025-05-06,Electronics,Mumbai, India,Tokyo, Japan,117000,5850,2.9,On-Time
+SHP-2025-0126,Import,2025-05-07,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,71500,3575,2.4,On-Time
+SHP-2025-0127,Export,2025-05-08,Textiles,Mumbai, India,Dubai, UAE,90500,4525,1.9,On-Time
+SHP-2025-0128,Import,2025-05-09,Electronics,Seoul, South Korea,Mumbai, India,207000,10350,4.2,On-Time
+SHP-2025-0129,Export,2025-05-10,Industrial Equipment,Mumbai, India,Singapore,79500,3975,2.6,Delayed
+SHP-2025-0130,Import,2025-05-11,Textiles,Dhaka, Bangladesh,Mumbai, India,104000,5200,3.1,On-Time
+SHP-2025-0131,Export,2025-05-12,Consumer Goods,Mumbai, India,Sydney, Australia,69500,3475,3.5,On-Time
+SHP-2025-0132,Import,2025-05-13,Electronics,Taipei, Taiwan,Mumbai, India,237000,11850,4.4,On-Time
+SHP-2025-0133,Export,2025-05-14,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,154000,7700,3.7,On-Time
+SHP-2025-0134,Import,2025-05-15,Consumer Goods,Bangkok, Thailand,Mumbai, India,83500,4175,2.8,On-Time
+SHP-2025-0135,Export,2025-05-16,Textiles,Mumbai, India,New York, USA,132000,6600,3.3,Delayed
+SHP-2025-0136,Import,2025-05-17,Industrial Equipment,Genoa, Italy,Mumbai, India,217000,10850,4.9,On-Time
+SHP-2025-0137,Export,2025-05-18,Electronics,Mumbai, India,Los Angeles, USA,174000,8700,3.4,On-Time
+SHP-2025-0138,Import,2025-05-19,Textiles,Istanbul, Turkey,Mumbai, India,93500,4675,3.6,On-Time
+SHP-2025-0139,Export,2025-05-20,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,49500,2475,2.3,On-Time
+SHP-2025-0140,Import,2025-05-21,Electronics,San Francisco, USA,Mumbai, India,247000,12350,4.5,On-Time
+SHP-2025-0141,Export,2025-05-22,Industrial Equipment,Mumbai, India,Durban, South Africa,108000,5400,4.0,Delayed
+SHP-2025-0142,Import,2025-05-23,Consumer Goods,Jakarta, Indonesia,Mumbai, India,59500,2975,3.0,On-Time
+SHP-2025-0143,Export,2025-05-24,Textiles,Mumbai, India,Lagos, Nigeria,76500,3825,3.8,On-Time
+SHP-2025-0144,Import,2025-05-25,Industrial Equipment,Yokohama, Japan,Mumbai, India,345000,17250,5.2,On-Time
+SHP-2025-0145,Export,2025-05-26,Electronics,Mumbai, India,Mexico City, Mexico,137000,6850,4.3,On-Time
+SHP-2025-0146,Import,2025-05-27,Consumer Goods,Manila, Philippines,Mumbai, India,51500,2575,3.2,On-Time
+SHP-2025-0147,Export,2025-05-28,Textiles,Mumbai, India,Cairo, Egypt,61500,3075,2.7,Delayed
+SHP-2025-0148,Import,2025-05-29,Electronics,Helsinki, Finland,Mumbai, India,181000,9050,4.1,On-Time
+SHP-2025-0149,Export,2025-05-30,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,81500,4075,4.7,On-Time
+SHP-2025-0150,Import,2025-05-31,Industrial Equipment,Busan, South Korea,Mumbai, India,307000,15350,5.0,On-Time
+SHP-2025-0151,Export,2025-06-01,Electronics,Mumbai, India,New York, USA,102500,5125,2.6,On-Time
+SHP-2025-0152,Import,2025-06-02,Textiles,Shanghai, China,Mumbai, India,147000,7350,4.0,On-Time
+SHP-2025-0153,Export,2025-06-03,Consumer Goods,Mumbai, India,London, UK,57500,2875,2.3,On-Time
+SHP-2025-0154,Import,2025-06-04,Industrial Equipment,Hamburg, Germany,Mumbai, India,287000,14350,4.7,Delayed
+SHP-2025-0155,Export,2025-06-05,Electronics,Mumbai, India,Tokyo, Japan,120000,6000,3.0,On-Time
+SHP-2025-0156,Import,2025-06-06,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,73500,3675,2.5,On-Time
+SHP-2025-0157,Export,2025-06-07,Textiles,Mumbai, India,Dubai, UAE,93500,4675,2.0,On-Time
+SHP-2025-0158,Import,2025-06-08,Electronics,Seoul, South Korea,Mumbai, India,212000,10600,4.3,On-Time
+SHP-2025-0159,Export,2025-06-09,Industrial Equipment,Mumbai, India,Singapore,82500,4125,2.7,On-Time
+SHP-2025-0160,Import,2025-06-10,Textiles,Dhaka, Bangladesh,Mumbai, India,107000,5350,3.2,Delayed
+SHP-2025-0161,Export,2025-06-11,Consumer Goods,Mumbai, India,Sydney, Australia,72500,3625,3.6,On-Time
+SHP-2025-0162,Import,2025-06-12,Electronics,Taipei, Taiwan,Mumbai, India,242000,12100,4.5,On-Time
+SHP-2025-0163,Export,2025-06-13,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,163000,8150,3.8,On-Time
+SHP-2025-0164,Import,2025-06-14,Consumer Goods,Bangkok, Thailand,Mumbai, India,86500,4325,2.9,On-Time
+SHP-2025-0165,Export,2025-06-15,Textiles,Mumbai, India,New York, USA,137000,6850,3.4,On-Time
+SHP-2025-0166,Import,2025-06-16,Industrial Equipment,Genoa, Italy,Mumbai, India,222000,11100,5.0,Delayed
+SHP-2025-0167,Export,2025-06-17,Electronics,Mumbai, India,Los Angeles, USA,183000,9150,3.5,On-Time
+SHP-2025-0168,Import,2025-06-18,Textiles,Istanbul, Turkey,Mumbai, India,97500,4875,3.7,On-Time
+SHP-2025-0169,Export,2025-06-19,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,52500,2625,2.4,On-Time
+SHP-2025-0170,Import,2025-06-20,Electronics,San Francisco, USA,Mumbai, India,252000,12600,4.6,On-Time
+SHP-2025-0171,Export,2025-06-21,Industrial Equipment,Mumbai, India,Durban, South Africa,114000,5700,4.1,On-Time
+SHP-2025-0172,Import,2025-06-22,Consumer Goods,Jakarta, Indonesia,Mumbai, India,62500,3125,3.1,Delayed
+SHP-2025-0173,Export,2025-06-23,Textiles,Mumbai, India,Lagos, Nigeria,79500,3975,3.9,On-Time
+SHP-2025-0174,Import,2025-06-24,Industrial Equipment,Yokohama, Japan,Mumbai, India,355000,17750,5.3,On-Time
+SHP-2025-0175,Export,2025-06-25,Electronics,Mumbai, India,Mexico City, Mexico,140000,7000,4.4,On-Time
+SHP-2025-0176,Import,2025-06-26,Consumer Goods,Manila, Philippines,Mumbai, India,54500,2725,3.3,On-Time
+SHP-2025-0177,Export,2025-06-27,Textiles,Mumbai, India,Cairo, Egypt,64500,3225,2.8,On-Time
+SHP-2025-0178,Import,2025-06-28,Electronics,Helsinki, Finland,Mumbai, India,187000,9350,4.2,Delayed
+SHP-2025-0179,Export,2025-06-29,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,84500,4225,4.8,On-Time
+SHP-2025-0180,Import,2025-06-30,Industrial Equipment,Busan, South Korea,Mumbai, India,312000,15600,5.1,On-Time
+SHP-2025-0181,Export,2025-07-01,Electronics,Mumbai, India,New York, USA,105500,5275,2.7,On-Time
+SHP-2025-0182,Import,2025-07-02,Textiles,Shanghai, China,Mumbai, India,152000,7600,4.1,On-Time
+SHP-2025-0183,Export,2025-07-03,Consumer Goods,Mumbai, India,London, UK,59500,2975,2.4,On-Time
+SHP-2025-0184,Import,2025-07-04,Industrial Equipment,Hamburg, Germany,Mumbai, India,292000,14600,4.8,On-Time
+SHP-2025-0185,Export,2025-07-05,Electronics,Mumbai, India,Tokyo, Japan,124000,6200,3.1,Delayed
+SHP-2025-0186,Import,2025-07-06,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,76500,3825,2.6,On-Time
+SHP-2025-0187,Export,2025-07-07,Textiles,Mumbai, India,Dubai, UAE,96500,4825,2.1,On-Time
+SHP-2025-0188,Import,2025-07-08,Electronics,Seoul, South Korea,Mumbai, India,217000,10850,4.4,On-Time
+SHP-2025-0189,Export,2025-07-09,Industrial Equipment,Mumbai, India,Singapore,85500,4275,2.8,On-Time
+SHP-2025-0190,Import,2025-07-10,Textiles,Dhaka, Bangladesh,Mumbai, India,110000,5500,3.3,On-Time
+SHP-2025-0191,Export,2025-07-11,Consumer Goods,Mumbai, India,Sydney, Australia,75500,3775,3.7,Delayed
+SHP-2025-0192,Import,2025-07-12,Electronics,Taipei, Taiwan,Mumbai, India,247000,12350,4.6,On-Time
+SHP-2025-0193,Export,2025-07-13,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,167000,8350,3.9,On-Time
+SHP-2025-0194,Import,2025-07-14,Consumer Goods,Bangkok, Thailand,Mumbai, India,89500,4475,3.0,On-Time
+SHP-2025-0195,Export,2025-07-15,Textiles,Mumbai, India,New York, USA,142000,7100,3.5,On-Time
+SHP-2025-0196,Import,2025-07-16,Industrial Equipment,Genoa, Italy,Mumbai, India,227000,11350,5.1,On-Time
+SHP-2025-0197,Export,2025-07-17,Electronics,Mumbai, India,Los Angeles, USA,187000,9350,3.6,Delayed
+SHP-2025-0198,Import,2025-07-18,Textiles,Istanbul, Turkey,Mumbai, India,100500,5025,3.8,On-Time
+SHP-2025-0199,Export,2025-07-19,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,55500,2775,2.5,On-Time
+SHP-2025-0200,Import,2025-07-20,Electronics,San Francisco, USA,Mumbai, India,257000,12850,4.7,On-Time
+SHP-2025-0201,Export,2025-07-21,Industrial Equipment,Mumbai, India,Durban, South Africa,117000,5850,4.2,On-Time
+SHP-2025-0202,Import,2025-07-22,Consumer Goods,Jakarta, Indonesia,Mumbai, India,64500,3225,3.2,On-Time
+SHP-2025-0203,Export,2025-07-23,Textiles,Mumbai, India,Lagos, Nigeria,81500,4075,4.0,Delayed
+SHP-2025-0204,Import,2025-07-24,Industrial Equipment,Yokohama, Japan,Mumbai, India,365000,18250,5.4,On-Time
+SHP-2025-0205,Export,2025-07-25,Electronics,Mumbai, India,Mexico City, Mexico,144000,7200,4.5,On-Time
+SHP-2025-0206,Import,2025-07-26,Consumer Goods,Manila, Philippines,Mumbai, India,56500,2825,3.4,On-Time
+SHP-2025-0207,Export,2025-07-27,Textiles,Mumbai, India,Cairo, Egypt,66500,3325,2.9,On-Time
+SHP-2025-0208,Import,2025-07-28,Electronics,Helsinki, Finland,Mumbai, India,192000,9600,4.3,On-Time
+SHP-2025-0209,Export,2025-07-29,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,86500,4325,4.9,Delayed
+SHP-2025-0210,Import,2025-07-30,Industrial Equipment,Busan, South Korea,Mumbai, India,317000,15850,5.2,On-Time
+SHP-2025-0211,Export,2025-07-31,Electronics,Mumbai, India,New York, USA,108500,5425,2.8,On-Time
+SHP-2025-0212,Import,2025-08-01,Textiles,Shanghai, China,Mumbai, India,157000,7850,4.2,On-Time
+SHP-2025-0213,Export,2025-08-02,Consumer Goods,Mumbai, India,London, UK,61500,3075,2.5,On-Time
+SHP-2025-0214,Import,2025-08-03,Industrial Equipment,Hamburg, Germany,Mumbai, India,297000,14850,4.9,On-Time
+SHP-2025-0215,Export,2025-08-04,Electronics,Mumbai, India,Tokyo, Japan,127000,6350,3.2,On-Time
+SHP-2025-0216,Import,2025-08-05,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,78500,3925,2.7,Delayed
+SHP-2025-0217,Export,2025-08-06,Textiles,Mumbai, India,Dubai, UAE,99500,4975,2.2,On-Time
+SHP-2025-0218,Import,2025-08-07,Electronics,Seoul, South Korea,Mumbai, India,222000,11100,4.5,On-Time
+SHP-2025-0219,Export,2025-08-08,Industrial Equipment,Mumbai, India,Singapore,88500,4425,2.9,On-Time
+SHP-2025-0220,Import,2025-08-09,Textiles,Dhaka, Bangladesh,Mumbai, India,114000,5700,3.4,On-Time
+SHP-2025-0221,Export,2025-08-10,Consumer Goods,Mumbai, India,Sydney, Australia,78500,3925,3.8,On-Time
+SHP-2025-0222,Import,2025-08-11,Electronics,Taipei, Taiwan,Mumbai, India,252000,12600,4.7,Delayed
+SHP-2025-0223,Export,2025-08-12,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,172000,8600,4.0,On-Time
+SHP-2025-0224,Import,2025-08-13,Consumer Goods,Bangkok, Thailand,Mumbai, India,91500,4575,3.1,On-Time
+SHP-2025-0225,Export,2025-08-14,Textiles,Mumbai, India,New York, USA,147000,7350,3.6,On-Time
+SHP-2025-0226,Import,2025-08-15,Industrial Equipment,Genoa, Italy,Mumbai, India,232000,11600,5.2,On-Time
+SHP-2025-0227,Export,2025-08-16,Electronics,Mumbai, India,Los Angeles, USA,192000,9600,3.7,On-Time
+SHP-2025-0228,Import,2025-08-17,Textiles,Istanbul, Turkey,Mumbai, India,103500,5175,3.9,Delayed
+SHP-2025-0229,Export,2025-08-18,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,57500,2875,2.6,On-Time
+SHP-2025-0230,Import,2025-08-19,Electronics,San Francisco, USA,Mumbai, India,262000,13100,4.8,On-Time
+SHP-2025-0231,Export,2025-08-20,Industrial Equipment,Mumbai, India,Durban, South Africa,120000,6000,4.3,On-Time
+SHP-2025-0232,Import,2025-08-21,Consumer Goods,Jakarta, Indonesia,Mumbai, India,66500,3325,3.3,On-Time
+SHP-2025-0233,Export,2025-08-22,Textiles,Mumbai, India,Lagos, Nigeria,83500,4175,4.1,On-Time
+SHP-2025-0234,Import,2025-08-23,Industrial Equipment,Yokohama, Japan,Mumbai, India,375000,18750,5.5,Delayed
+SHP-2025-0235,Export,2025-08-24,Electronics,Mumbai, India,Mexico City, Mexico,147000,7350,4.6,On-Time
+SHP-2025-0236,Import,2025-08-25,Consumer Goods,Manila, Philippines,Mumbai, India,58500,2925,3.5,On-Time
+SHP-2025-0237,Export,2025-08-26,Textiles,Mumbai, India,Cairo, Egypt,68500,3425,3.0,On-Time
+SHP-2025-0238,Import,2025-08-27,Electronics,Helsinki, Finland,Mumbai, India,197000,9850,4.4,On-Time
+SHP-2025-0239,Export,2025-08-28,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,88500,4425,5.0,On-Time
+SHP-2025-0240,Import,2025-08-29,Industrial Equipment,Busan, South Korea,Mumbai, India,322000,16100,5.3,Delayed
+SHP-2025-0241,Export,2025-08-30,Electronics,Mumbai, India,New York, USA,111500,5575,2.9,On-Time
+SHP-2025-0242,Import,2025-08-31,Textiles,Shanghai, China,Mumbai, India,162000,8100,4.3,On-Time
+SHP-2025-0243,Export,2025-09-01,Consumer Goods,Mumbai, India,London, UK,63500,3175,2.6,On-Time
+SHP-2025-0244,Import,2025-09-02,Industrial Equipment,Hamburg, Germany,Mumbai, India,302000,15100,5.0,On-Time
+SHP-2025-0245,Export,2025-09-03,Electronics,Mumbai, India,Tokyo, Japan,130000,6500,3.3,On-Time
+SHP-2025-0246,Import,2025-09-04,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,80500,4025,2.8,On-Time
+SHP-2025-0247,Export,2025-09-05,Textiles,Mumbai, India,Dubai, UAE,101500,5075,2.3,Delayed
+SHP-2025-0248,Import,2025-09-06,Electronics,Seoul, South Korea,Mumbai, India,227000,11350,4.6,On-Time
+SHP-2025-0249,Export,2025-09-07,Industrial Equipment,Mumbai, India,Singapore,91500,4575,3.0,On-Time
+SHP-2025-0250,Import,2025-09-08,Textiles,Dhaka, Bangladesh,Mumbai, India,117000,5850,3.5,On-Time
+SHP-2025-0251,Export,2025-09-09,Consumer Goods,Mumbai, India,Sydney, Australia,81500,4075,3.9,On-Time
+SHP-2025-0252,Import,2025-09-10,Electronics,Taipei, Taiwan,Mumbai, India,257000,12850,4.8,On-Time
+SHP-2025-0253,Export,2025-09-11,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,177000,8850,4.1,Delayed
+SHP-2025-0254,Import,2025-09-12,Consumer Goods,Bangkok, Thailand,Mumbai, India,93500,4675,3.2,On-Time
+SHP-2025-0255,Export,2025-09-13,Textiles,Mumbai, India,New York, USA,152000,7600,3.7,On-Time
+SHP-2025-0256,Import,2025-09-14,Industrial Equipment,Genoa, Italy,Mumbai, India,237000,11850,5.3,On-Time
+SHP-2025-0257,Export,2025-09-15,Electronics,Mumbai, India,Los Angeles, USA,197000,9850,3.8,On-Time
+SHP-2025-0258,Import,2025-09-16,Textiles,Istanbul, Turkey,Mumbai, India,106500,5325,4.0,On-Time
+SHP-2025-0259,Export,2025-09-17,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,59500,2975,2.7,Delayed
+SHP-2025-0260,Import,2025-09-18,Electronics,San Francisco, USA,Mumbai, India,267000,13350,4.9,On-Time
+SHP-2025-0261,Export,2025-09-19,Industrial Equipment,Mumbai, India,Durban, South Africa,124000,6200,4.4,On-Time
+SHP-2025-0262,Import,2025-09-20,Consumer Goods,Jakarta, Indonesia,Mumbai, India,68500,3425,3.4,On-Time
+SHP-2025-0263,Export,2025-09-21,Textiles,Mumbai, India,Lagos, Nigeria,86500,4325,4.2,On-Time
+SHP-2025-0264,Import,2025-09-22,Industrial Equipment,Yokohama, Japan,Mumbai, India,385000,19250,5.6,On-Time
+SHP-2025-0265,Export,2025-09-23,Electronics,Mumbai, India,Mexico City, Mexico,150000,7500,4.7,Delayed
+SHP-2025-0266,Import,2025-09-24,Consumer Goods,Manila, Philippines,Mumbai, India,60500,3025,3.6,On-Time
+SHP-2025-0267,Export,2025-09-25,Textiles,Mumbai, India,Cairo, Egypt,70500,3525,3.1,On-Time
+SHP-2025-0268,Import,2025-09-26,Electronics,Helsinki, Finland,Mumbai, India,202000,10100,4.5,On-Time
+SHP-2025-0269,Export,2025-09-27,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,91500,4575,5.1,On-Time
+SHP-2025-0270,Import,2025-09-28,Industrial Equipment,Busan, South Korea,Mumbai, India,327000,16350,5.4,On-Time
+SHP-2025-0271,Export,2025-09-29,Electronics,Mumbai, India,New York, USA,114500,5725,3.0,Delayed
+SHP-2025-0272,Import,2025-09-30,Textiles,Shanghai, China,Mumbai, India,167000,8350,4.4,On-Time
+SHP-2025-0273,Export,2025-10-01,Consumer Goods,Mumbai, India,London, UK,65500,3275,2.7,On-Time
+SHP-2025-0274,Import,2025-10-02,Industrial Equipment,Hamburg, Germany,Mumbai, India,307000,15350,5.1,On-Time
+SHP-2025-0275,Export,2025-10-03,Electronics,Mumbai, India,Tokyo, Japan,134000,6700,3.4,On-Time
+SHP-2025-0276,Import,2025-10-04,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,82500,4125,2.9,On-Time
+SHP-2025-0277,Export,2025-10-05,Textiles,Mumbai, India,Dubai, UAE,104500,5225,2.4,On-Time
+SHP-2025-0278,Import,2025-10-06,Electronics,Seoul, South Korea,Mumbai, India,232000,11600,4.7,Delayed
+SHP-2025-0279,Export,2025-10-07,Industrial Equipment,Mumbai, India,Singapore,94500,4725,3.1,On-Time
+SHP-2025-0280,Import,2025-10-08,Textiles,Dhaka, Bangladesh,Mumbai, India,120000,6000,3.6,On-Time
+SHP-2025-0281,Export,2025-10-09,Consumer Goods,Mumbai, India,Sydney, Australia,84500,4225,4.0,On-Time
+SHP-2025-0282,Import,2025-10-10,Electronics,Taipei, Taiwan,Mumbai, India,262000,13100,4.9,On-Time
+SHP-2025-0283,Export,2025-10-11,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,182000,9100,4.2,On-Time
+SHP-2025-0284,Import,2025-10-12,Consumer Goods,Bangkok, Thailand,Mumbai, India,96500,4825,3.3,Delayed
+SHP-2025-0285,Export,2025-10-13,Textiles,Mumbai, India,New York, USA,157000,7850,3.8,On-Time
+SHP-2025-0286,Import,2025-10-14,Industrial Equipment,Genoa, Italy,Mumbai, India,242000,12100,5.4,On-Time
+SHP-2025-0287,Export,2025-10-15,Electronics,Mumbai, India,Los Angeles, USA,202000,10100,3.9,On-Time
+SHP-2025-0288,Import,2025-10-16,Textiles,Istanbul, Turkey,Mumbai, India,109500,5475,4.1,On-Time
+SHP-2025-0289,Export,2025-10-17,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,61500,3075,2.8,On-Time
+SHP-2025-0290,Import,2025-10-18,Electronics,San Francisco, USA,Mumbai, India,272000,13600,5.0,Delayed
+SHP-2025-0291,Export,2025-10-19,Industrial Equipment,Mumbai, India,Durban, South Africa,127000,6350,4.5,On-Time
+SHP-2025-0292,Import,2025-10-20,Consumer Goods,Jakarta, Indonesia,Mumbai, India,70500,3525,3.5,On-Time
+SHP-2025-0293,Export,2025-10-21,Textiles,Mumbai, India,Lagos, Nigeria,89500,4475,4.3,On-Time
+SHP-2025-0294,Import,2025-10-22,Industrial Equipment,Yokohama, Japan,Mumbai, India,395000,19750,5.7,On-Time
+SHP-2025-0295,Export,2025-10-23,Electronics,Mumbai, India,Mexico City, Mexico,154000,7700,4.8,On-Time
+SHP-2025-0296,Import,2025-10-24,Consumer Goods,Manila, Philippines,Mumbai, India,62500,3125,3.7,Delayed
+SHP-2025-0297,Export,2025-10-25,Textiles,Mumbai, India,Cairo, Egypt,72500,3625,3.2,On-Time
+SHP-2025-0298,Import,2025-10-26,Electronics,Helsinki, Finland,Mumbai, India,207000,10350,4.6,On-Time
+SHP-2025-0299,Export,2025-10-27,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,94500,4725,5.2,On-Time
+SHP-2025-0300,Import,2025-10-28,Industrial Equipment,Busan, South Korea,Mumbai, India,332000,16600,5.5,On-Time
+SHP-2025-0301,Export,2025-10-29,Electronics,Mumbai, India,New York, USA,117500,5875,3.1,On-Time
+SHP-2025-0302,Import,2025-10-30,Textiles,Shanghai, China,Mumbai, India,172000,8600,4.5,Delayed
+SHP-2025-0303,Export,2025-10-31,Consumer Goods,Mumbai, India,London, UK,67500,3375,2.8,On-Time
+SHP-2025-0304,Import,2025-11-01,Industrial Equipment,Hamburg, Germany,Mumbai, India,312000,15600,5.2,On-Time
+SHP-2025-0305,Export,2025-11-02,Electronics,Mumbai, India,Tokyo, Japan,137000,6850,3.5,On-Time
+SHP-2025-0306,Import,2025-11-03,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,84500,4225,3.0,On-Time
+SHP-2025-0307,Export,2025-11-04,Textiles,Mumbai, India,Dubai, UAE,107500,5375,2.5,On-Time
+SHP-2025-0308,Import,2025-11-05,Electronics,Seoul, South Korea,Mumbai, India,237000,11850,4.8,On-Time
+SHP-2025-0309,Export,2025-11-06,Industrial Equipment,Mumbai, India,Singapore,97500,4875,3.2,Delayed
+SHP-2025-0310,Import,2025-11-07,Textiles,Dhaka, Bangladesh,Mumbai, India,124000,6200,3.7,On-Time
+SHP-2025-0311,Export,2025-11-08,Consumer Goods,Mumbai, India,Sydney, Australia,87500,4375,4.1,On-Time
+SHP-2025-0312,Import,2025-11-09,Electronics,Taipei, Taiwan,Mumbai, India,267000,13350,5.0,On-Time
+SHP-2025-0313,Export,2025-11-10,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,187000,9350,4.3,On-Time
+SHP-2025-0314,Import,2025-11-11,Consumer Goods,Bangkok, Thailand,Mumbai, India,99500,4975,3.4,On-Time
+SHP-2025-0315,Export,2025-11-12,Textiles,Mumbai, India,New York, USA,162000,8100,3.9,Delayed
+SHP-2025-0316,Import,2025-11-13,Industrial Equipment,Genoa, Italy,Mumbai, India,247000,12350,5.5,On-Time
+SHP-2025-0317,Export,2025-11-14,Electronics,Mumbai, India,Los Angeles, USA,207000,10350,4.0,On-Time
+SHP-2025-0318,Import,2025-11-15,Textiles,Istanbul, Turkey,Mumbai, India,114000,5700,4.2,On-Time
+SHP-2025-0319,Export,2025-11-16,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,64500,3225,2.9,On-Time
+SHP-2025-0320,Import,2025-11-17,Electronics,San Francisco, USA,Mumbai, India,277000,13850,5.1,On-Time
+SHP-2025-0321,Export,2025-11-18,Industrial Equipment,Mumbai, India,Durban, South Africa,130000,6500,4.6,Delayed
+SHP-2025-0322,Import,2025-11-19,Consumer Goods,Jakarta, Indonesia,Mumbai, India,72500,3625,3.6,On-Time
+SHP-2025-0323,Export,2025-11-20,Textiles,Mumbai, India,Lagos, Nigeria,91500,4575,4.4,On-Time
+SHP-2025-0324,Import,2025-11-21,Industrial Equipment,Yokohama, Japan,Mumbai, India,405000,20250,5.8,On-Time
+SHP-2025-0325,Export,2025-11-22,Electronics,Mumbai, India,Mexico City, Mexico,157000,7850,4.9,On-Time
+SHP-2025-0326,Import,2025-11-23,Consumer Goods,Manila, Philippines,Mumbai, India,64500,3225,3.8,On-Time
+SHP-2025-0327,Export,2025-11-24,Textiles,Mumbai, India,Cairo, Egypt,74500,3725,3.3,Delayed
+SHP-2025-0328,Import,2025-11-25,Electronics,Helsinki, Finland,Mumbai, India,212000,10600,4.7,On-Time
+SHP-2025-0329,Export,2025-11-26,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,97500,4875,5.3,On-Time
+SHP-2025-0330,Import,2025-11-27,Industrial Equipment,Busan, South Korea,Mumbai, India,337000,16850,5.6,On-Time
+SHP-2025-0331,Export,2025-11-28,Electronics,Mumbai, India,New York, USA,120500,6025,3.2,On-Time
+SHP-2025-0332,Import,2025-11-29,Textiles,Shanghai, China,Mumbai, India,177000,8850,4.6,On-Time
+SHP-2025-0333,Export,2025-11-30,Consumer Goods,Mumbai, India,London, UK,69500,3475,2.9,Delayed
+SHP-2025-0334,Import,2025-12-01,Industrial Equipment,Hamburg, Germany,Mumbai, India,317000,15850,5.3,On-Time
+SHP-2025-0335,Export,2025-12-02,Electronics,Mumbai, India,Tokyo, Japan,140000,7000,3.6,On-Time
+SHP-2025-0336,Import,2025-12-03,Consumer Goods,Ho Chi Minh City, Vietnam,Mumbai, India,86500,4325,3.1,On-Time
+SHP-2025-0337,Export,2025-12-04,Textiles,Mumbai, India,Dubai, UAE,110500,5525,2.6,On-Time
+SHP-2025-0338,Import,2025-12-05,Electronics,Seoul, South Korea,Mumbai, India,242000,12100,4.9,On-Time
+SHP-2025-0339,Export,2025-12-06,Industrial Equipment,Mumbai, India,Singapore,100500,5025,3.3,On-Time
+SHP-2025-0340,Import,2025-12-07,Textiles,Dhaka, Bangladesh,Mumbai, India,127000,6350,3.8,Delayed
+SHP-2025-0341,Export,2025-12-08,Consumer Goods,Mumbai, India,Sydney, Australia,90500,4525,4.2,On-Time
+SHP-2025-0342,Import,2025-12-09,Electronics,Taipei, Taiwan,Mumbai, India,272000,13600,5.1,On-Time
+SHP-2025-0343,Export,2025-12-10,Industrial Equipment,Mumbai, India,Rotterdam, Netherlands,192000,9600,4.4,On-Time
+SHP-2025-0344,Import,2025-12-11,Consumer Goods,Bangkok, Thailand,Mumbai, India,102500,5125,3.5,On-Time
+SHP-2025-0345,Export,2025-12-12,Textiles,Mumbai, India,New York, USA,167000,8350,4.0,On-Time
+SHP-2025-0346,Import,2025-12-13,Industrial Equipment,Genoa, Italy,Mumbai, India,252000,12600,5.6,Delayed
+SHP-2025-0347,Export,2025-12-14,Electronics,Mumbai, India,Los Angeles, USA,212000,10600,4.1,On-Time
+SHP-2025-0348,Import,2025-12-15,Textiles,Istanbul, Turkey,Mumbai, India,117000,5850,4.3,On-Time
+SHP-2025-0349,Export,2025-12-16,Consumer Goods,Mumbai, India,Jeddah, Saudi Arabia,66500,3325,3.0,On-Time
+SHP-2025-0350,Import,2025-12-17,Electronics,San Francisco, USA,Mumbai, India,282000,14100,5.2,On-Time
+SHP-2025-0351,Export,2025-12-18,Industrial Equipment,Mumbai, India,Durban, South Africa,134000,6700,4.7,On-Time
+SHP-2025-0352,Import,2025-12-19,Consumer Goods,Jakarta, Indonesia,Mumbai, India,74500,3725,3.7,Delayed
+SHP-2025-0353,Export,2025-12-20,Textiles,Mumbai, India,Lagos, Nigeria,94500,4725,4.5,On-Time
+SHP-2025-0354,Import,2025-12-21,Industrial Equipment,Yokohama, Japan,Mumbai, India,415000,20750,5.9,On-Time
+SHP-2025-0355,Export,2025-12-22,Electronics,Mumbai, India,Mexico City, Mexico,160000,8000,5.0,On-Time
+SHP-2025-0356,Import,2025-12-23,Consumer Goods,Manila, Philippines,Mumbai, India,66500,3325,3.9,On-Time
+SHP-2025-0357,Export,2025-12-24,Textiles,Mumbai, India,Cairo, Egypt,76500,3825,3.4,On-Time
+SHP-2025-0358,Import,2025-12-25,Electronics,Helsinki, Finland,Mumbai, India,217000,10850,4.8,Delayed
+SHP-2025-0359,Export,2025-12-26,Consumer Goods,Mumbai, India,Rio de Janeiro, Brazil,100500,5025,5.4,On-Time
+SHP-2025-0360,Import,2025-12-27,Industrial Equipment,Busan, South Korea,Mumbai, India,342000,17100,5.7,On-Time
+SHP-2025-0361,Export,2025-12-28,Electronics,Mumbai, India,New York, USA,123500,6175,3.3,On-Time
+SHP-2025-0362,Import,2025-12-29,Textiles,Shanghai, China,Mumbai, India,182000,9100,4.7,On-Time
+SHP-2025-0363,Export,2025-12-30,Consumer Goods,Mumbai, India,London, UK,71500,3575,3.0,On-Time
+SHP-2025-0364,Import,2025-12-31,Industrial Equipment,Hamburg, Germany,Mumbai, India,322000,16100,5.4,Delayed
