@@ -1,0 +1,226 @@
+"""
+AnomalyAgent
+------------
+Analyses a TelemetryRecord (and its rolling history) to detect sensor
+anomalies.  Returns a list of Anomaly objects describing what was found.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from typing import List, Optional
+
+from agents.telemetry_agent import TelemetryAgent, TelemetryRecord
+from config import (
+    HUMIDITY_MAX_PCT,
+    SHOCK_MAX_G,
+    TEMP_MAX_C,
+    TEMP_MIN_C,
+    EXCURSION_MINUTES,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class AnomalyType(str, Enum):
+    TEMP_HIGH        = "TEMPERATURE_EXCURSION_HIGH"
+    TEMP_LOW         = "TEMPERATURE_EXCURSION_LOW"
+    HUMIDITY_HIGH    = "HUMIDITY_EXCURSION"
+    SHOCK_EVENT      = "SHOCK_EVENT"
+    CUSTOMS_HOLD     = "CUSTOMS_HOLD"
+    FLIGHT_DELAY     = "FLIGHT_DELAY"
+    FLIGHT_DIVERSION = "FLIGHT_DIVERSION"
+    BATTERY_LOW      = "BATTERY_LOW"
+    SUSTAINED_EXCURSION = "SUSTAINED_TEMP_EXCURSION"
+
+
+class Severity(str, Enum):
+    LOW    = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH   = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+@dataclass
+class Anomaly:
+    anomaly_type:  AnomalyType
+    severity:      Severity
+    shipment_id:   str
+    container_id:  str
+    detected_at:   datetime
+    description:   str
+    measured_value: Optional[float] = None
+    threshold:      Optional[float] = None
+    duration_min:   Optional[float] = None
+    metadata:       dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return {
+            "anomaly_type":   self.anomaly_type.value,
+            "severity":       self.severity.value,
+            "shipment_id":    self.shipment_id,
+            "container_id":   self.container_id,
+            "detected_at":    self.detected_at.isoformat(),
+            "description":    self.description,
+            "measured_value": self.measured_value,
+            "threshold":      self.threshold,
+            "duration_min":   self.duration_min,
+        }
+
+
+class AnomalyAgent:
+    """
+    Rule-based + statistical anomaly detection.
+    Extend _ml_check() later for model-based detection.
+    """
+
+    def __init__(self, telemetry_agent: TelemetryAgent):
+        self._tel = telemetry_agent
+
+    def analyse(self, record: TelemetryRecord) -> List[Anomaly]:
+        anomalies: List[Anomaly] = []
+        now = datetime.now(timezone.utc)
+
+        # --- Temperature excursion ---
+        if record.temperature_c > TEMP_MAX_C:
+            sev = Severity.CRITICAL if record.temperature_c > TEMP_MAX_C + 4 else Severity.HIGH
+            anomalies.append(Anomaly(
+                anomaly_type   = AnomalyType.TEMP_HIGH,
+                severity       = sev,
+                shipment_id    = record.shipment_id,
+                container_id   = record.container_id,
+                detected_at    = now,
+                description    = (f"Temperature {record.temperature_c:.1f}°C exceeds "
+                                  f"upper limit {TEMP_MAX_C}°C"),
+                measured_value = record.temperature_c,
+                threshold      = TEMP_MAX_C,
+            ))
+
+        if record.temperature_c < TEMP_MIN_C:
+            sev = Severity.CRITICAL if record.temperature_c < TEMP_MIN_C - 4 else Severity.HIGH
+            anomalies.append(Anomaly(
+                anomaly_type   = AnomalyType.TEMP_LOW,
+                severity       = sev,
+                shipment_id    = record.shipment_id,
+                container_id   = record.container_id,
+                detected_at    = now,
+                description    = (f"Temperature {record.temperature_c:.1f}°C below "
+                                  f"lower limit {TEMP_MIN_C}°C"),
+                measured_value = record.temperature_c,
+                threshold      = TEMP_MIN_C,
+            ))
+
+        # --- Sustained temperature excursion ---
+        duration = self._excursion_duration_minutes(record)
+        if duration and duration >= EXCURSION_MINUTES:
+            anomalies.append(Anomaly(
+                anomaly_type   = AnomalyType.SUSTAINED_EXCURSION,
+                severity       = Severity.CRITICAL,
+                shipment_id    = record.shipment_id,
+                container_id   = record.container_id,
+                detected_at    = now,
+                description    = (f"Continuous temperature excursion for "
+                                  f"{duration:.0f} min (threshold {EXCURSION_MINUTES} min)"),
+                duration_min   = duration,
+            ))
+
+        # --- Humidity ---
+        if record.humidity_pct > HUMIDITY_MAX_PCT:
+            anomalies.append(Anomaly(
+                anomaly_type   = AnomalyType.HUMIDITY_HIGH,
+                severity       = Severity.MEDIUM,
+                shipment_id    = record.shipment_id,
+                container_id   = record.container_id,
+                detected_at    = now,
+                description    = (f"Humidity {record.humidity_pct:.1f}% exceeds "
+                                  f"limit {HUMIDITY_MAX_PCT}%"),
+                measured_value = record.humidity_pct,
+                threshold      = HUMIDITY_MAX_PCT,
+            ))
+
+        # --- Shock ---
+        if record.shock_g > SHOCK_MAX_G:
+            sev = Severity.HIGH if record.shock_g > SHOCK_MAX_G * 2 else Severity.MEDIUM
+            anomalies.append(Anomaly(
+                anomaly_type   = AnomalyType.SHOCK_EVENT,
+                severity       = sev,
+                shipment_id    = record.shipment_id,
+                container_id   = record.container_id,
+                detected_at    = now,
+                description    = (f"Shock {record.shock_g:.2f}g exceeds limit {SHOCK_MAX_G}g"),
+                measured_value = record.shock_g,
+                threshold      = SHOCK_MAX_G,
+            ))
+
+        # --- Customs hold ---
+        if record.customs_status == "HOLD":
+            anomalies.append(Anomaly(
+                anomaly_type = AnomalyType.CUSTOMS_HOLD,
+                severity     = Severity.HIGH,
+                shipment_id  = record.shipment_id,
+                container_id = record.container_id,
+                detected_at  = now,
+                description  = "Shipment placed on customs HOLD",
+            ))
+
+        # --- Flight status ---
+        if record.flight_status == "DELAYED":
+            sev = Severity.HIGH if record.delay_hours > 6 else Severity.MEDIUM
+            anomalies.append(Anomaly(
+                anomaly_type   = AnomalyType.FLIGHT_DELAY,
+                severity       = sev,
+                shipment_id    = record.shipment_id,
+                container_id   = record.container_id,
+                detected_at    = now,
+                description    = f"Flight delayed by {record.delay_hours:.1f} hours",
+                measured_value = record.delay_hours,
+            ))
+
+        if record.flight_status == "DIVERTED":
+            anomalies.append(Anomaly(
+                anomaly_type = AnomalyType.FLIGHT_DIVERSION,
+                severity     = Severity.CRITICAL,
+                shipment_id  = record.shipment_id,
+                container_id = record.container_id,
+                detected_at  = now,
+                description  = "Flight diverted — destination changed",
+            ))
+
+        # --- Battery ---
+        if record.battery_pct < 15:
+            anomalies.append(Anomaly(
+                anomaly_type   = AnomalyType.BATTERY_LOW,
+                severity       = Severity.LOW,
+                shipment_id    = record.shipment_id,
+                container_id   = record.container_id,
+                detected_at    = now,
+                description    = f"Sensor battery at {record.battery_pct:.0f}%",
+                measured_value = record.battery_pct,
+            ))
+
+        if anomalies:
+            logger.info("[%s] %d anomalies detected: %s",
+                        record.shipment_id, len(anomalies),
+                        [a.anomaly_type.value for a in anomalies])
+        return anomalies
+
+    # ------------------------------------------------------------------
+    def _excursion_duration_minutes(self, record: TelemetryRecord) -> Optional[float]:
+        """Return continuous excursion duration from history (minutes)."""
+        history = self._tel.get_history(record.shipment_id)
+        if len(history) < 2:
+            return None
+
+        duration = 0.0
+        for i in range(len(history) - 1, 0, -1):
+            r = history[i]
+            if not (TEMP_MIN_C <= r.temperature_c <= TEMP_MAX_C):
+                prev = history[i - 1]
+                delta = (r.timestamp - prev.timestamp).total_seconds() / 60.0
+                duration += max(delta, 0)
+            else:
+                break
+        return duration if duration > 0 else None
