@@ -4,6 +4,8 @@ let shipmentMarker = null;
 let originMarker = null;
 let destMarker = null;
 let previewLine = null;
+let originWeatherCircle = null;
+let destWeatherCircle = null;
 let pollTimer = null;
 let activeSimId = null;
 
@@ -57,7 +59,9 @@ async function loadOptions() {
   const opts = await fetchJSON("/api/options");
   fillSelect(document.getElementById("originSelect"), opts.origins);
   fillSelect(document.getElementById("destSelect"), opts.destinations);
-  setStatus(`Loaded ${opts.routes_count} routes from ${opts.source_file} (ports in dropdown: ${opts.ports_indexed})`);
+  setStatus(
+    `Loaded ${opts.routes_count} routes from ${opts.source_file} (airports in dropdown: ${opts.airports_indexed})`
+  );
 }
 
 function clearRoute() {
@@ -80,6 +84,14 @@ function clearRoute() {
   if (destMarker) {
     map.removeLayer(destMarker);
     destMarker = null;
+  }
+  if (originWeatherCircle) {
+    map.removeLayer(originWeatherCircle);
+    originWeatherCircle = null;
+  }
+  if (destWeatherCircle) {
+    map.removeLayer(destWeatherCircle);
+    destWeatherCircle = null;
   }
 }
 
@@ -191,6 +203,10 @@ async function startSim() {
 
   const origin = document.getElementById("originSelect").value;
   const destination = document.getElementById("destSelect").value;
+  if (origin === destination) {
+    setStatus("Start failed: origin and destination cannot be the same.");
+    return;
+  }
   const durationSeconds = Number(document.getElementById("durationSeconds").value || "45");
   const speedMultiplier = Number(document.getElementById("speedMultiplier").value || "60");
 
@@ -223,6 +239,27 @@ async function startSim() {
   const originLatLng = [sim.origin_lat, sim.origin_lon];
   const destLatLng = [sim.destination_lat, sim.destination_lon];
 
+  // Weather zones (dummy) around origin/destination
+  const oW = sim.weather_origin;
+  const dW = sim.weather_destination;
+  originWeatherCircle = L.circle(originLatLng, {
+    radius: (oW.radius_km || 60) * 1000,
+    color: oW.color || "#64748b",
+    fillColor: oW.color || "#64748b",
+    fillOpacity: 0.15,
+    weight: 2,
+  }).addTo(map);
+  originWeatherCircle.bindTooltip(`Origin weather: ${oW.label}`, { sticky: true });
+
+  destWeatherCircle = L.circle(destLatLng, {
+    radius: (dW.radius_km || 60) * 1000,
+    color: dW.color || "#64748b",
+    fillColor: dW.color || "#64748b",
+    fillOpacity: 0.15,
+    weight: 2,
+  }).addTo(map);
+  destWeatherCircle.bindTooltip(`Destination weather: ${dW.label}`, { sticky: true });
+
   routeLine = L.polyline([originLatLng, destLatLng], {
     color: "#2563eb",
     weight: 4,
@@ -251,7 +288,30 @@ async function startSim() {
       const latlng = [state.lat, state.lon];
       shipmentMarker.setLatLng(latlng);
       setActiveInfo(state);
-      if (state.progress >= 1.0) {
+      // Update weather zone visuals as weather changes over time
+      if (originWeatherCircle && state.weather_origin) {
+        originWeatherCircle.setStyle({
+          color: state.weather_origin.color,
+          fillColor: state.weather_origin.color,
+        });
+        originWeatherCircle.setRadius((state.weather_origin.radius_km || 60) * 1000);
+        originWeatherCircle.bindTooltip(`Origin weather: ${state.weather_origin.label}`, { sticky: true });
+      }
+      if (destWeatherCircle && state.weather_destination) {
+        destWeatherCircle.setStyle({
+          color: state.weather_destination.color,
+          fillColor: state.weather_destination.color,
+        });
+        destWeatherCircle.setRadius((state.weather_destination.radius_km || 60) * 1000);
+        destWeatherCircle.bindTooltip(`Destination weather: ${state.weather_destination.label}`, { sticky: true });
+      }
+
+      if (state.phase === "WAIT_TAKEOFF") {
+        setStatus(`Holding at origin (weather: ${state.weather_origin?.label || "unknown"})`);
+      } else if (state.phase === "HOLDING") {
+        setStatus(`Holding near destination (weather: ${state.weather_destination?.label || "unknown"})`);
+      }
+      if (state.phase === "ARRIVED") {
         setStatus(`Arrived: ${state.shipment_id} (${state.distance_km} km)`);
         stopPolling();
       }
