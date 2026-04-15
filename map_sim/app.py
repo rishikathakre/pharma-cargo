@@ -531,7 +531,10 @@ class Simulation:
         # weather clears on the very next weather bucket.
         if self.phase == "HOLDING":
             held_for = now - (self.holding_start_monotonic or now)
-            if w_dest["severity"] < LANDING_BLOCK_SEVERITY and held_for >= MIN_HOLDING_SECONDS:
+            # Scale minimum holding time by speed_multiplier so fast demos don't
+            # still wait 15 real seconds; at speed 1 it's 15 s, at speed 60 it's 0.25 s.
+            min_hold = MIN_HOLDING_SECONDS / max(1.0, float(self.speed_multiplier))
+            if w_dest["severity"] < LANDING_BLOCK_SEVERITY and held_for >= min_hold:
                 self.phase = "ARRIVED"
                 self.arrived_at_monotonic = now
             return
@@ -540,15 +543,14 @@ class Simulation:
         if self.phase == "ARRIVED":
             return 1.0
         if self.phase in ("WAIT_TAKEOFF", "HOLDING"):
-            # not making route progress
             return 0.0 if self.phase == "WAIT_TAKEOFF" else 1.0
         # ENROUTE
-        # duration_seconds is the intended on-screen animation duration in real wall-clock
-        # seconds.  speed_multiplier is NOT applied here — it only affects holding-circle
-        # angular velocity.  Mixing it into the progress formula would make a 45 s flight
-        # complete in 45/60 ≈ 0.75 s (invisible to the user).
+        # duration_seconds = simulated flight time in seconds (e.g. 28800 for 8 h).
+        # speed_multiplier = simulated seconds consumed per real wall-clock second
+        # (e.g. 60 → 1 min of flight per second on screen, so 8 h completes in 8 min).
+        # On-screen completion time = duration_seconds / speed_multiplier.
         start = self.enroute_start_monotonic or now
-        elapsed = now - start          # real wall-clock seconds since takeoff
+        elapsed = (now - start) * self.speed_multiplier   # simulated seconds elapsed
         if self.duration_seconds <= 0:
             return 1.0
         linear = max(0.0, min(1.0, elapsed / self.duration_seconds))

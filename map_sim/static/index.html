@@ -145,12 +145,12 @@
 
         <div class="row">
           <div>
-            <label for="durationSeconds">Duration seconds</label>
-            <input id="durationSeconds" type="number" min="1" step="1" value="45" />
+            <label for="durationSeconds">Sim flight time (s)</label>
+            <input id="durationSeconds" type="number" min="1" step="100" value="3600" title="Simulated flight duration in seconds (e.g. 3600 = 1 h, 28800 = 8 h)" />
           </div>
           <div>
-            <label for="speedMultiplier">Speed multiplier</label>
-            <input id="speedMultiplier" type="number" min="1" step="1" value="60" />
+            <label for="speedMultiplier">Speed (sim-s / real-s)</label>
+            <input id="speedMultiplier" type="number" min="1" step="10" value="120" title="Simulated seconds per real second. 120 = 1 h of flight plays in 30 s." />
           </div>
         </div>
 
@@ -204,9 +204,9 @@
 
         <div id="status">Loading…</div>
         <pre id="activeInfo">None</pre>
-        <div class="hint">
-          Tip: use weather overrides to force holding/delays. The server polls every ~300ms; pipeline
-          runs in a background thread so the UI stays responsive during HITL waits.
+        <div class="hint" id="etaHint">
+          On-screen flight completes in <b id="etaSec">30</b> s — use weather overrides to force delays/holds.
+          Pipeline runs in a background thread so the UI stays responsive during HITL waits.
         </div>
       </aside>
 
