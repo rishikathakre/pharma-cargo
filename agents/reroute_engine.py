@@ -67,6 +67,39 @@ _COLD_STORAGE_FACILITIES: Dict[str, Tuple[str, float]] = {
 
 _DEFAULT_FACILITY = ("Nearest GDP-Compliant Cold Hub (auto-located)", 3.0)
 
+# Map common full airport names (as used by map_sim) → IATA codes for facility lookup.
+_AIRPORT_NAME_TO_IATA: Dict[str, str] = {
+    "jfk airport":              "JFK",
+    "john f kennedy":           "JFK",
+    "heathrow airport":         "LHR",
+    "london heathrow":          "LHR",
+    "frankfurt airport":        "FRA",
+    "frankfurt am main":        "FRA",
+    "mumbai airport":           "BOM",
+    "chhatrapati shivaji":      "BOM",
+    "o'hare airport":           "ORD",
+    "ohare airport":            "ORD",
+    "chicago o'hare":           "ORD",
+    "pudong airport":           "PVG",
+    "shanghai pudong":          "PVG",
+    "singapore changi airport": "SIN",
+    "changi airport":           "SIN",
+    "los angeles":              "LAX",
+    "lax airport":              "LAX",
+    "miami airport":            "MIA",
+    "miami international":      "MIA",
+    "boston airport":           "BOS",
+    "logan airport":            "BOS",
+    "amsterdam airport":        "AMS",
+    "schiphol":                 "AMS",
+    "paris cdg":                "CDG",
+    "charles de gaulle":        "CDG",
+    "zurich airport":           "ZRH",
+    "hong kong airport":        "HKG",
+    "narita airport":           "NRT",
+    "tokyo narita":             "NRT",
+}
+
 # Emergency pharma courier baseline ETA (hours from pickup to cold-chain handoff)
 _EMERGENCY_COURIER_ETA_HOURS = 4.0
 
@@ -415,16 +448,37 @@ class RerouteEngine:
         """
         Return (facility_name, divert_hours) for the cold-storage hub
         closest to the destination airport/city.
-        Checks for IATA code match first, then substring match.
+
+        Resolution order:
+          1. Direct IATA code match   (e.g. "LHR")
+          2. Full-name → IATA map     (e.g. "Heathrow Airport" → LHR)
+          3. Substring match on IATA  (e.g. "JFK" anywhere in dest string)
+          4. Substring match on facility name
+          5. Default fallback
         """
         dest_upper = destination.upper()
-        # Direct IATA match
+        dest_lower = destination.lower()
+
+        # 1. Direct IATA
         if dest_upper in _COLD_STORAGE_FACILITIES:
             return _COLD_STORAGE_FACILITIES[dest_upper]
-        # Substring match (e.g. "California" → LAX)
-        for code, (name, hours) in _COLD_STORAGE_FACILITIES.items():
-            if code in dest_upper or dest_upper in name.upper():
-                return name, hours
+
+        # 2. Full airport-name → IATA (handles map_sim names like "Heathrow Airport")
+        for name_key, iata in _AIRPORT_NAME_TO_IATA.items():
+            if name_key in dest_lower:
+                if iata in _COLD_STORAGE_FACILITIES:
+                    return _COLD_STORAGE_FACILITIES[iata]
+
+        # 3. IATA code anywhere in destination string
+        for code, facility in _COLD_STORAGE_FACILITIES.items():
+            if code in dest_upper:
+                return facility
+
+        # 4. Facility name substring match
+        for code, (fname, hours) in _COLD_STORAGE_FACILITIES.items():
+            if dest_upper in fname.upper():
+                return fname, hours
+
         return _DEFAULT_FACILITY
 
     def _rank_alternatives(self, current_carrier: str) -> List[Dict[str, Any]]:

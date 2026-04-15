@@ -40,6 +40,9 @@ class AuditLogger:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         logger.info("AuditLogger initialised → %s", self._path)
+        # Demo-only escape hatch: allow truncation when explicitly enabled.
+        # In production, audit logs should be immutable and retained.
+        self._allow_truncate = str(os.getenv("AUDIT_ALLOW_TRUNCATE", "")).strip().lower() in ("1", "true", "yes", "y")
 
     # ------------------------------------------------------------------
     # Convenience log methods
@@ -66,6 +69,37 @@ class AuditLogger:
     def log_raw(self, event_type: str, shipment_id: Optional[str],
                 payload: Dict[str, Any]) -> None:
         self._write(event_type, shipment_id, payload)
+
+    # ------------------------------------------------------------------
+    # Demo helpers
+    # ------------------------------------------------------------------
+
+    def truncate(self) -> None:
+        """
+        Delete/truncate the underlying JSONL log file.
+        This is intended for demos and local development only.
+        """
+        if not self._allow_truncate:
+            raise PermissionError("Audit log truncation is disabled (set AUDIT_ALLOW_TRUNCATE=1 to enable).")
+        with self._lock:
+            try:
+                # Replace contents atomically-ish: open with 'w' truncates.
+                with open(self._path, "w", encoding="utf-8") as fh:
+                    fh.write("")
+            except FileNotFoundError:
+                return
+
+    def file_info(self) -> Dict[str, Any]:
+        try:
+            st = self._path.stat()
+            return {
+                "path": str(self._path),
+                "exists": True,
+                "bytes": int(st.st_size),
+                "allow_truncate": bool(self._allow_truncate),
+            }
+        except FileNotFoundError:
+            return {"path": str(self._path), "exists": False, "bytes": 0, "allow_truncate": bool(self._allow_truncate)}
 
     # ------------------------------------------------------------------
     # Query helpers (for compliance reporting)

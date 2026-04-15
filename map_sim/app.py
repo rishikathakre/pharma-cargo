@@ -16,19 +16,18 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from agents.cascade_orchestrator import CascadeOrchestrator, PipelineState
-from hitl.approval_queue import ApprovalQueue
-
-# Shared HITL queue + orchestrator for the demo UI.
-APPROVAL_QUEUE = ApprovalQueue(timeout_sec=30)
-ORCHESTRATOR = CascadeOrchestrator(approval_queue=APPROVAL_QUEUE)
+from agents.cascade_orchestrator import CascadeOrchestrator
+from agents.anomaly_agent import Anomaly
+from agents.risk_agent import RecommendedAction, RiskAssessment, RiskLevel
+from compliance.audit_logger import AuditLogger
+from hitl.approval_queue import ApprovalQueue, ApprovalRequest, ApprovalStatus
 
 
 DATA_RAW = ROOT / "data" / "raw"
@@ -137,6 +136,14 @@ WEATHER_BY_CODE = {z["code"]: z for z in WEATHER_ZONES}
 
 # How often dummy weather changes (wall-clock seconds).
 WEATHER_REFRESH_SEC = 6.0
+
+# Pipeline tick throttling.
+# The UI polls fast (sub-second) to animate the map; the agent pipeline + audit writes
+# should not run on every poll or the audit file will explode.
+PIPELINE_TICK_MIN_INTERVAL_SEC = 2.0
+
+# Auto-prune ARRIVED simulations so the sidebar doesn't grow forever.
+SIM_AUTO_PRUNE_ARRIVED_AFTER_SEC = 60.0
 
 # Thresholds for flight behavior (0..1 severity)
 TAKEOFF_BLOCK_SEVERITY = 0.80   # origin weather this bad => no takeoff
@@ -289,7 +296,8 @@ def _pick_weather(rng: random.Random) -> dict:
         "color": z["color"],
         "severity": float(z["severity"]),
         # purely decorative for map visuals
-        "radius_km": float(rng.choice([40, 60, 80, 110])),
+        # Keep these modest so the circles don't dominate the map when zoomed in.
+        "radius_km": float(rng.choice([12, 18, 25, 35, 45])),
     }
 
 def _weather_from_code(code: str, rng: random.Random) -> dict:
@@ -301,7 +309,7 @@ def _weather_from_code(code: str, rng: random.Random) -> dict:
         "label": z["label"],
         "color": z["color"],
         "severity": float(z["severity"]),
-        "radius_km": float(rng.choice([40, 60, 80, 110])),
+        "radius_km": float(rng.choice([12, 18, 25, 35, 45])),
     }
 
 
@@ -342,8 +350,80 @@ def _lerp(a: float, b: float, t: float) -> float:
 
 
 def _interp_latlon(a: Tuple[float, float], b: Tuple[float, float], t: float) -> Tuple[float, float]:
-    # Simple linear interpolation is fine for demo distances.
-    return (_lerp(a[0], b[0], t), _lerp(a[1], b[1], t))
+    """
+    Great-circle interpolation (slerp) for realistic flight paths.
+    Returns intermediate point between a and b on the sphere.
+    """
+    t = max(0.0, min(1.0, t))
+
+    lat1 = math.radians(a[0])
+    lon1 = math.radians(a[1])
+    lat2 = math.radians(b[0])
+    lon2 = math.radians(b[1])
+
+    def _to_vec(lat: float, lon: float) -> tuple[float, float, float]:
+        return (math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat))
+
+    def _dot(u: tuple[float, float, float], v: tuple[float, float, float]) -> float:
+        return u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
+
+    def _scale(u: tuple[float, float, float], s: float) -> tuple[float, float, float]:
+        return (u[0] * s, u[1] * s, u[2] * s)
+
+    def _add(u: tuple[float, float, float], v: tuple[float, float, float]) -> tuple[float, float, float]:
+        return (u[0] + v[0], u[1] + v[1], u[2] + v[2])
+
+    v1 = _to_vec(lat1, lon1)
+    v2 = _to_vec(lat2, lon2)
+
+    omega = math.acos(max(-1.0, min(1.0, _dot(v1, v2))))
+    if not math.isfinite(omega) or omega < 1e-10:
+        return (_lerp(a[0], b[0], t), _lerp(a[1], b[1], t))
+
+    so = math.sin(omega)
+    k1 = math.sin((1.0 - t) * omega) / so
+    k2 = math.sin(t * omega) / so
+    v = _add(_scale(v1, k1), _scale(v2, k2))
+
+    x, y, z = v
+    lat = math.atan2(z, math.sqrt(x * x + y * y))
+    lon = math.atan2(y, x)
+    return (math.degrees(lat), math.degrees(lon))
+
+
+def _route_points(a: Tuple[float, float], b: Tuple[float, float], segments: int = 64) -> List[Tuple[float, float]]:
+    """
+    Canonical route polyline used for both drawing and movement.
+
+    We start from a great-circle path (realistic), then add a small perpendicular
+    bulge so the curve is visibly apparent even for shorter hops / zoomed-in views.
+    """
+    segments = max(16, int(segments))
+    base = [_interp_latlon(a, b, i / segments) for i in range(segments + 1)]
+
+    # Add a gentle bulge (in degrees) perpendicular to the chord in lat/lon space.
+    # This is *visual polish* for the demo, not geodesy.
+    dist_km = _haversine_km(a, b)
+    bulge_deg = min(6.0, max(0.25, dist_km / 1800.0))  # longer routes curve more; cap it
+
+    mid_i = len(base) // 2
+    lat_a, lon_a = base[0]
+    lat_b, lon_b = base[-1]
+    dx = lon_b - lon_a
+    dy = lat_b - lat_a
+    norm = math.hypot(dx, dy) or 1.0
+    # Perpendicular unit vector
+    px = -dy / norm
+    py = dx / norm
+    # Stable direction so bulge doesn't flip randomly
+    sign = 1.0 if (lat_a + lat_b) >= 0 else -1.0
+
+    out: List[Tuple[float, float]] = []
+    for i, (lat, lon) in enumerate(base):
+        t = i / (len(base) - 1)
+        w = math.sin(math.pi * t)  # 0 at ends, 1 at middle
+        out.append((lat + (py * bulge_deg * w * sign), lon + (px * bulge_deg * w * sign)))
+    return out
 
 
 def _ease_in_out(t: float) -> float:
@@ -401,7 +481,7 @@ class CreateSimRequest(BaseModel):
     destination_lat: Optional[float] = None
     destination_lon: Optional[float] = None
     # Presentation speed: higher = faster movement.
-    speed_multiplier: float = 60.0
+    speed_multiplier: float = 10.0
     # How long the full trip should take on screen (seconds).
     duration_seconds: float = 45.0
     shipment_id: Optional[str] = None
@@ -426,6 +506,7 @@ class CreateSimResponse(BaseModel):
     weather_destination: dict
     origin_weather_override: Optional[str] = None
     destination_weather_override: Optional[str] = None
+    route_points: Optional[List[List[float]]] = None
 
 
 @dataclass
@@ -442,12 +523,19 @@ class Simulation:
     weather_seed: int
     origin_weather_override: Optional[str] = None
     destination_weather_override: Optional[str] = None
+    route_points: List[Tuple[float, float]] = field(default_factory=list)
 
     # runtime state
     phase: str = "WAIT_TAKEOFF"  # WAIT_TAKEOFF | ENROUTE | HOLDING | ARRIVED
     enroute_start_monotonic: Optional[float] = None
     holding_start_monotonic: Optional[float] = None
     arrived_at_monotonic: Optional[float] = None
+    _last_assessment: Optional[RiskAssessment] = None
+    _last_anomalies: List[Anomaly] = field(default_factory=list)
+    _last_actions: List[dict] = field(default_factory=list)
+    _last_hitl_request_id: Optional[str] = None
+    _last_tick_at_monotonic: Optional[float] = None
+    _hitl_request_created_id: Optional[str] = None
 
     # congestion / priority (demo-only)
     # Higher priority moves a shipment ahead of others waiting to take off.
@@ -531,7 +619,10 @@ class Simulation:
         # weather clears on the very next weather bucket.
         if self.phase == "HOLDING":
             held_for = now - (self.holding_start_monotonic or now)
-            if w_dest["severity"] < LANDING_BLOCK_SEVERITY and held_for >= MIN_HOLDING_SECONDS:
+            # Scale minimum holding time by speed_multiplier so fast demos don't
+            # still wait 15 real seconds; at speed 1 it's 15 s, at speed 60 it's 0.25 s.
+            min_hold = MIN_HOLDING_SECONDS / max(1.0, float(self.speed_multiplier))
+            if w_dest["severity"] < LANDING_BLOCK_SEVERITY and held_for >= min_hold:
                 self.phase = "ARRIVED"
                 self.arrived_at_monotonic = now
             return
@@ -540,15 +631,14 @@ class Simulation:
         if self.phase == "ARRIVED":
             return 1.0
         if self.phase in ("WAIT_TAKEOFF", "HOLDING"):
-            # not making route progress
             return 0.0 if self.phase == "WAIT_TAKEOFF" else 1.0
         # ENROUTE
-        # duration_seconds is the intended on-screen animation duration in real wall-clock
-        # seconds.  speed_multiplier is NOT applied here — it only affects holding-circle
-        # angular velocity.  Mixing it into the progress formula would make a 45 s flight
-        # complete in 45/60 ≈ 0.75 s (invisible to the user).
+        # duration_seconds = simulated flight time in seconds (e.g. 28800 for 8 h).
+        # speed_multiplier = simulated seconds consumed per real wall-clock second
+        # (e.g. 60 → 1 min of flight per second on screen, so 8 h completes in 8 min).
+        # On-screen completion time = duration_seconds / speed_multiplier.
         start = self.enroute_start_monotonic or now
-        elapsed = now - start          # real wall-clock seconds since takeoff
+        elapsed = (now - start) * self.speed_multiplier   # simulated seconds elapsed
         if self.duration_seconds <= 0:
             return 1.0
         linear = max(0.0, min(1.0, elapsed / self.duration_seconds))
@@ -559,7 +649,18 @@ class Simulation:
         if self.phase == "WAIT_TAKEOFF":
             return self.origin
         if self.phase == "ENROUTE":
-            return _interp_latlon(self.origin, self.destination, self.progress(now))
+            # Follow the precomputed route points exactly so marker stays on the drawn line.
+            pts = self.route_points or [self.origin, self.destination]
+            p = max(0.0, min(1.0, self.progress(now)))
+            if len(pts) <= 2:
+                return _interp_latlon(self.origin, self.destination, p)
+            idx_f = p * (len(pts) - 1)
+            i = int(math.floor(idx_f))
+            j = min(len(pts) - 1, i + 1)
+            local_t = idx_f - i
+            a = pts[i]
+            b = pts[j]
+            return (_lerp(a[0], b[0], local_t), _lerp(a[1], b[1], local_t))
         if self.phase == "HOLDING":
             # Simple holding pattern: circle around destination.
             lat0, lon0 = self.destination
@@ -576,34 +677,10 @@ class Simulation:
         w_origin, w_dest = self.current_weather(now)
         lat, lon = self.current_position(now)
         dist_to_dest = _haversine_km((lat, lon), self.destination)
-
-        # Journey timing:
-        # - scheduled_start: sim creation (acts as scheduled departure in this demo)
-        # - takeoff: when we enter ENROUTE
-        # - arrival: when we enter ARRIVED
-        takeoff_at = self.enroute_start_monotonic
-        arrived_at = self.arrived_at_monotonic
-        if arrived_at is not None:
-            total_elapsed_sec = max(0.0, arrived_at - self.created_at_monotonic)
-            airborne_sec = max(0.0, arrived_at - (takeoff_at or arrived_at))
-            ground_delay_sec = max(0.0, (takeoff_at or arrived_at) - self.created_at_monotonic)
-        else:
-            total_elapsed_sec = max(0.0, now - self.created_at_monotonic)
-            if takeoff_at is not None:
-                airborne_sec = max(0.0, now - takeoff_at)
-                ground_delay_sec = max(0.0, takeoff_at - self.created_at_monotonic)
-            else:
-                airborne_sec = 0.0
-                ground_delay_sec = total_elapsed_sec
-
-        with self._pipeline_lock:
-            last_telemetry = self._last_telemetry
-            last_risk_state = self._last_risk_state
-
         congestion_level = RUNWAY.get_congestion_level(self.origin_name)
         queue_position = RUNWAY.position(self.origin_name, self.sim_id) if self.phase == "WAIT_TAKEOFF" else None
 
-        return {
+        out = {
             "sim_id": self.sim_id,
             "shipment_id": self.shipment_id,
             "origin": self.origin_name,
@@ -622,15 +699,19 @@ class Simulation:
             "distance_to_destination_km": round(dist_to_dest, 1),
             "weather_origin": w_origin,
             "weather_destination": w_dest,
-            "journey_total_elapsed_sec": round(total_elapsed_sec, 1),   # scheduled -> arrival (or now)
-            "journey_airborne_sec": round(airborne_sec, 1),             # takeoff -> arrival (or now)
-            "journey_ground_delay_sec": round(ground_delay_sec, 1),     # scheduled -> takeoff (or until now)
-            "telemetry": last_telemetry,
-            "altitude_m": (last_telemetry or {}).get("altitude_m"),
-            "last_risk_state": (
-                last_risk_state.__dict__ if last_risk_state is not None else None
-            ),
+            "route_points": [[round(p[0], 6), round(p[1], 6)] for p in (self.route_points or [])],
         }
+        # Pipeline-enriched fields (added by the API handler tick runner).
+        if self._last_assessment is not None:
+            out["risk_level"] = self._last_assessment.risk_level.value
+            out["risk_score"] = round(float(self._last_assessment.risk_score), 4)
+        else:
+            out["risk_level"] = None
+            out["risk_score"] = None
+        out["anomalies"] = [a.anomaly_type.value for a in (self._last_anomalies or [])]
+        out["hitl_pending"] = self._last_hitl_request_id
+        out["action_results"] = self._last_actions
+        return out
 
     def generate_telemetry(self) -> dict:
         """
@@ -638,10 +719,9 @@ class Simulation:
         Severity is expected in [0.0, 1.0].
         """
         now_mono = time.monotonic()
-        # Telemetry should reflect the *current* phase; phase transitions are handled elsewhere.
         phase = self.phase
 
-        w_origin, w_dest = self.current_weather(now_mono)
+        _, w_dest = self.current_weather(now_mono)
         severity = float(w_dest.get("severity", 0.0) or 0.0)
         severity = max(0.0, min(1.0, severity))
 
@@ -662,15 +742,13 @@ class Simulation:
         jitter_bucket = int(now_mono * 2.0)  # changes ~2x/sec max
         rng = random.Random((hash(self.sim_id) ^ (jitter_bucket * 1_000_003)) & 0xFFFFFFFF)
 
-        # Map severity -> temperature excursion bands (conceptual mapping per spec).
+        # Map severity -> temperature excursion bands.
         if severity < 0.5:
-            temp_target = rng.uniform(4.0, 7.5)  # safe 2–8°C range (centered near 5°C)
+            temp_target = rng.uniform(4.0, 7.5)  # safe 2–8°C range
         elif severity < 0.7:
-            # Mild excursion 9–12°C
             t = (severity - 0.5) / 0.2
             temp_target = 9.0 + t * 3.0 + rng.uniform(-0.4, 0.4)
         else:
-            # Serious excursion 13–18°C
             t = (severity - 0.7) / 0.3
             temp_target = 13.0 + t * 5.0 + rng.uniform(-0.6, 0.6)
         temp_target = max(2.0, min(18.5, temp_target))
@@ -680,47 +758,33 @@ class Simulation:
         customs_status = "CLEARED"
 
         if phase == "WAIT_TAKEOFF":
-            # On ground, refrigeration stable, no delay reported yet.
             temperature_c = rng.uniform(4.0, 6.0)
             humidity_pct = rng.uniform(40.0, 55.0)
             shock_g = rng.uniform(0.02, 0.08)
             altitude_m = rng.uniform(0.0, 30.0)
-            delay_hours = 0.0
-            flight_status = "ON_TIME"
-            customs_status = "CLEARED"
         elif phase == "ENROUTE":
-            # In flight; if weather is severe, refrigeration is under stress and delays accumulate.
             temperature_c = temp_target
             humidity_pct = rng.uniform(18.0, 35.0)
             shock_g = rng.uniform(0.01, 0.06)
-            # Smooth takeoff/climb and descent/approach profile based on eased progress.
             p = max(0.0, min(1.0, float(self.progress(now_mono))))
-            ramp = 0.12  # ~12% of route for climb and descent
+            ramp = 0.12
             climb = 1.0 if p >= ramp else (p / ramp)
             descend = 1.0 if p <= (1.0 - ramp) else ((1.0 - p) / ramp)
             alt_factor = max(0.0, min(1.0, min(climb, descend)))
             cruise_alt_m = 10600.0
             altitude_m = max(0.0, cruise_alt_m * alt_factor + rng.uniform(-120.0, 120.0))
-            enroute_elapsed_h = max(
-                0.0, (now_mono - (self.enroute_start_monotonic or now_mono)) / 3600.0
-            )
+            enroute_elapsed_h = max(0.0, (now_mono - (self.enroute_start_monotonic or now_mono)) / 3600.0)
             if severity > 0.6:
                 delay_hours = enroute_elapsed_h * (severity - 0.6) * 6.0
             flight_status = "DELAYED" if delay_hours >= 0.5 else "ON_TIME"
-            customs_status = "CLEARED"
         elif phase == "HOLDING":
-            # Circling / diversion / customs hold: explicitly delayed and holding.
             customs_status = "HOLD"
             flight_status = "DELAYED"
-            holding_elapsed_h = max(
-                0.0, (now_mono - (self.holding_start_monotonic or now_mono)) / 3600.0
-            )
+            holding_elapsed_h = max(0.0, (now_mono - (self.holding_start_monotonic or now_mono)) / 3600.0)
             delay_hours = max(1.0, holding_elapsed_h + severity * 3.0)
-            # Temperature keeps rising while time passes (cap at 18°C-ish).
             temperature_c = min(18.0, temp_target + holding_elapsed_h * 4.0 + rng.uniform(-0.3, 0.3))
             humidity_pct = rng.uniform(30.0, 50.0)
             shock_g = rng.uniform(0.02, 0.09)
-            # Keep a realistic mid-altitude while circling; scale oscillation with speed_multiplier.
             osc = math.sin((now_mono - self.created_at_monotonic) * 0.35 * max(1.0, float(self.speed_multiplier)))
             altitude_m = max(0.0, 6100.0 + osc * 450.0 + rng.uniform(-80.0, 80.0))
         else:  # ARRIVED
@@ -728,9 +792,6 @@ class Simulation:
             humidity_pct = rng.uniform(40.0, 60.0)
             shock_g = rng.uniform(0.01, 0.05)
             altitude_m = 0.0
-            delay_hours = 0.0
-            flight_status = "ON_TIME"
-            customs_status = "CLEARED"
 
         return {
             "shipment_id": self.shipment_id,
@@ -747,10 +808,87 @@ class Simulation:
             "delay_hours": round(float(delay_hours), 2),
             "phase": phase,
             "weather_severity": round(severity, 3),
+            # Route metadata — picked up by cascade_orchestrator._node_assess_risk()
+            # so the reroute engine knows origin/destination for cold-storage lookup.
+            "origin":      self.origin_name,
+            "destination": self.destination_name,
+            "carrier":     "pharma-air-sim",   # sim-level placeholder carrier
+            "product_id":  "VACC-STANDARD",    # default; can be extended per-sim
         }
 
 
 SIMS: Dict[str, Simulation] = {}
+
+_approval_queue = ApprovalQueue()
+_orchestrator = CascadeOrchestrator(approval_queue=_approval_queue)
+_audit = AuditLogger()
+
+def _pending_request_for_shipment(shipment_id: str) -> Optional[ApprovalRequest]:
+    for r in _approval_queue.pending():
+        if r.shipment_id == shipment_id:
+            return r
+    return None
+
+def _tick_pipeline(sim: Simulation) -> None:
+    """
+    Run one non-blocking pipeline tick for a simulation.
+    NOTE: We intentionally DO NOT block on HITL decisions here.
+    """
+    now = time.monotonic()
+    last = sim._last_tick_at_monotonic
+    if last is not None and (now - last) < PIPELINE_TICK_MIN_INTERVAL_SEC:
+        return
+    telemetry = sim.generate_telemetry()
+    record = _orchestrator.tel.ingest(telemetry)
+    anomalies = _orchestrator.ano.analyse(record)
+    assessment = _orchestrator.risk.assess(record, anomalies)
+    assessment.metadata.update(
+        {
+            "carrier": telemetry.get("carrier", "Unknown"),
+            "origin": telemetry.get("origin", "Unknown"),
+            "destination": telemetry.get("destination", "Unknown"),
+            "product_id": telemetry.get("product_id"),
+        }
+    )
+
+    sim._last_anomalies = anomalies
+    sim._last_assessment = assessment
+
+    # Audit: anomalies + assessment each tick (demo visibility).
+    for a in anomalies:
+        _audit.log_anomaly(a)
+    _audit.log_assessment(assessment)
+
+    # Compliance check (no blocking).
+    try:
+        compliant, violations = _orchestrator.gdp.validate(record, assessment)
+        if violations:
+            for v in violations:
+                _audit.log_compliance_violation(record.shipment_id, v)
+        assessment.metadata["gdp_compliant"] = bool(compliant)
+    except Exception as e:
+        assessment.metadata["gdp_check_error"] = str(e)
+
+    # HITL: create at most ONE request per shipment until risk resets to LOW.
+    # This avoids duplicate alert cards when the shipment remains high risk across ticks.
+    sim._last_hitl_request_id = None
+    if assessment.risk_level == RiskLevel.LOW:
+        sim._hitl_request_created_id = None
+    else:
+        # If there's a currently pending request, show it.
+        existing = _pending_request_for_shipment(assessment.shipment_id)
+        if existing is not None:
+            sim._last_hitl_request_id = existing.request_id
+            sim._hitl_request_created_id = existing.request_id
+        else:
+            # No pending request. Only create a new one if we never created one
+            # for this shipment since the last reset-to-LOW.
+            if sim._hitl_request_created_id is None:
+                req = _approval_queue.submit(assessment)
+                sim._last_hitl_request_id = req.request_id
+                sim._hitl_request_created_id = req.request_id
+
+    sim._last_tick_at_monotonic = now
 
 
 app = FastAPI(title="Map Simulation (Isolated)", version="0.1.0")
@@ -767,9 +905,13 @@ def index() -> str:
 @app.get("/api/options", response_model=RouteOptions)
 def options() -> RouteOptions:
     # IMPORTANT: Dropdowns are intentionally driven by us-airports.csv `name` only.
-    origins = AIRPORT_NAMES
-    destinations = AIRPORT_NAMES
-    source = str(PHARMA_ROUTES_CSV if PHARMA_ROUTES_CSV.exists() else SHIPMENT_CSV)
+    # Large <select> lists can be very slow to render in the browser.
+    # Limit options to keep the UI responsive (users can still type-to-jump within the list).
+    max_items = 600
+    origins = AIRPORT_NAMES[:max_items]
+    destinations = AIRPORT_NAMES[:max_items]
+    # Never expose absolute local paths in the UI.
+    source = (PHARMA_ROUTES_CSV if PHARMA_ROUTES_CSV.exists() else SHIPMENT_CSV).name
     return RouteOptions(
         origins=origins,
         destinations=destinations,
@@ -852,6 +994,7 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
         weather_seed=seed,
         origin_weather_override=req.origin_weather,
         destination_weather_override=req.destination_weather,
+        route_points=_route_points(origin, destination, segments=72),
     )
     SIMS[sim_id] = sim
     # Congestion: new sims join the runway queue for their origin.
@@ -905,6 +1048,7 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
         weather_destination=w_dest,
         origin_weather_override=req.origin_weather,
         destination_weather_override=req.destination_weather,
+        route_points=[[round(p[0], 6), round(p[1], 6)] for p in sim.route_points],
     )
 
 
@@ -1002,12 +1146,115 @@ def get_sim(sim_id: str) -> dict:
     sim = SIMS.get(sim_id)
     if not sim:
         raise HTTPException(status_code=404, detail="Simulation not found")
+    _tick_pipeline(sim)
     return sim.to_public()
 
 
 @app.get("/api/sims")
 def list_sims() -> List[dict]:
-    return [s.to_public() for s in SIMS.values()]
+    out: List[dict] = []
+    now = time.monotonic()
+    to_delete: List[str] = []
+    for sid, s in SIMS.items():
+        if s.phase == "ARRIVED" and s.arrived_at_monotonic is not None:
+            if (now - s.arrived_at_monotonic) >= SIM_AUTO_PRUNE_ARRIVED_AFTER_SEC:
+                to_delete.append(sid)
+                continue
+        _tick_pipeline(s)
+        out.append(s.to_public())
+    for sid in to_delete:
+        SIMS.pop(sid, None)
+    return out
+
+
+@app.get("/api/audit/info")
+def audit_info() -> dict:
+    return _audit.file_info()
+
+
+@app.post("/api/audit/clear")
+def audit_clear() -> dict:
+    """
+    Demo-only endpoint to truncate the audit log file.
+    Enable by setting AUDIT_ALLOW_TRUNCATE=1 in the environment.
+    """
+    try:
+        _audit.truncate()
+        return {"ok": True, "audit": _audit.file_info()}
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+
+@app.post("/api/demo/reset")
+def demo_reset() -> dict:
+    """
+    Demo reset: clear in-memory sims and pending HITL requests.
+    (Does NOT delete audit.jsonl; use /api/audit/clear for that when enabled.)
+    """
+    sims_before = len(SIMS)
+    SIMS.clear()
+    pending_cleared = _approval_queue.clear(pending_only=True)
+    return {"ok": True, "sims_cleared": sims_before, "hitl_pending_cleared": pending_cleared}
+
+
+class ApproveRequestBody(BaseModel):
+    operator: str = "map_operator"
+    approved_actions: Optional[List[str]] = None
+    notes: str = ""
+
+
+class RejectRequestBody(BaseModel):
+    operator: str = "map_operator"
+    notes: str = ""
+
+
+@app.get("/api/hitl/pending")
+def pending_hitl() -> List[dict]:
+    return [r.to_dict() for r in _approval_queue.pending()]
+
+
+@app.post("/api/hitl/{request_id}/approve")
+def approve_hitl(request_id: str, body: ApproveRequestBody) -> dict:
+    req = _approval_queue.get(request_id)
+    if req is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    actions: Optional[List[RecommendedAction]] = None
+    if body.approved_actions is not None:
+        try:
+            actions = [RecommendedAction(a) for a in body.approved_actions]
+        except Exception:
+            raise HTTPException(status_code=422, detail="Invalid approved_actions")
+
+    updated = _approval_queue.approve(request_id, body.operator, actions, body.notes)
+    _audit.log_hitl_decision(updated)
+
+    # Execute approved actions using the latest assessment we have for this shipment.
+    sim = next((s for s in SIMS.values() if s.shipment_id == updated.shipment_id), None)
+    assessment = sim._last_assessment if sim else None
+    if assessment is not None and updated.approved_actions:
+        results = _orchestrator.act.execute(assessment, updated.approved_actions)
+        sim._last_actions = [r.to_dict() for r in results] if sim else []
+        for r in results:
+            _audit.log_action_result(r)
+
+    # Clear pending id from the sim cache if this was the active pending.
+    if sim and sim._last_hitl_request_id == request_id:
+        sim._last_hitl_request_id = None
+    return updated.to_dict()
+
+
+@app.post("/api/hitl/{request_id}/reject")
+def reject_hitl(request_id: str, body: RejectRequestBody) -> dict:
+    req = _approval_queue.get(request_id)
+    if req is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+    updated = _approval_queue.reject(request_id, body.operator, body.notes)
+    _audit.log_hitl_decision(updated)
+    sim = next((s for s in SIMS.values() if s.shipment_id == updated.shipment_id), None)
+    if sim and sim._last_hitl_request_id == request_id:
+        sim._last_hitl_request_id = None
+    return updated.to_dict()
 
 
 # ---------------------------------------------------------------------------
