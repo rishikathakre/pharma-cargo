@@ -9,13 +9,14 @@ and optionally calls an LLM for natural-language justification.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 
 from agents.anomaly_agent import Anomaly, AnomalyType, Severity
-from agents.telemetry_agent import TelemetryRecord
+from agents.telemetry_agent import TelemetryAgent, TelemetryRecord
 from config import (
     GEMINI_API_KEY,
     LLM_MODEL,
@@ -26,6 +27,7 @@ from config import (
     TEMP_MAX_C,
     TEMP_MIN_C,
 )
+from data.product_catalogue import get_product_profile, get_default_product_id
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +83,9 @@ class RiskAgent:
     Scores risk from anomalies + telemetry context and maps to actions.
     """
 
-    def __init__(self):
+    def __init__(self, telemetry_agent: Optional[TelemetryAgent] = None):
         self._weights = RISK_WEIGHTS
+        self._tel = telemetry_agent
 
     def assess(self, record: TelemetryRecord, anomalies: List[Anomaly]) -> RiskAssessment:
         score = self._compute_score(record, anomalies)
@@ -114,12 +117,17 @@ class RiskAgent:
     def _compute_score(self, record: TelemetryRecord, anomalies: List[Anomaly]) -> float:
         components: dict[str, float] = {}
 
+        product_id = (record.raw or {}).get("product_id") or get_default_product_id()
+        profile = get_product_profile(product_id)
+        temp_min = profile.temp_min_c if profile else TEMP_MIN_C
+        temp_max = profile.temp_max_c if profile else TEMP_MAX_C
+
         # Temperature component (0-1)
-        if record.temperature_c > TEMP_MAX_C:
-            excess = (record.temperature_c - TEMP_MAX_C) / 10.0
+        if record.temperature_c > temp_max:
+            excess = (record.temperature_c - temp_max) / 10.0
             components["temperature"] = min(excess + 0.5, 1.0)
-        elif record.temperature_c < TEMP_MIN_C:
-            excess = (TEMP_MIN_C - record.temperature_c) / 10.0
+        elif record.temperature_c < temp_min:
+            excess = (temp_min - record.temperature_c) / 10.0
             components["temperature"] = min(excess + 0.5, 1.0)
         else:
             components["temperature"] = 0.0
@@ -219,25 +227,120 @@ class RiskAgent:
 
     def _estimate_spoilage(self, record: TelemetryRecord, anomalies: List[Anomaly]) -> float:
         """
-        Returns estimated spoilage probability (0.0–1.0).
-
-        TODO: Replace this stub with a pharmacological model grounded in real data:
-          - Mean Kinetic Temperature (MKT) per WHO TRS 961 Annex 9 / USP <1079>:
-              MKT = ΔH/R / -ln( Σ exp(-ΔH/RTi) / n )
-              where ΔH = activation energy (~83.14 kJ/mol for most vaccines),
-              R = gas constant, Ti = temperature at each reading (Kelvin).
-          - Product-specific stability profiles: each vaccine/biologic has its own
-              approved excursion window (e.g., mRNA vaccines: 2 hours at 8–25°C;
-              MMR: 72 hours at ≤25°C). These come from the product monograph or SmPC.
-          - Integrate cumulative time-temperature exposure (TTI) from TelemetryAgent
-              history, not just the current snapshot.
-          - Shock damage probability should use product-specific fragility ratings.
-
-        Until real data and product profiles are available, spoilage_prob = 0.0
-        so downstream financial calculations (insurance, inventory) are not
-        misleadingly populated with arbitrary heuristic numbers.
+        Estimated spoilage probability (0.0–1.0) using:
+        - Mean Kinetic Temperature (MKT) over telemetry history (time-weighted)
+        - Product-specific profile thresholds / excursion windows
         """
-        return 0.0
+        product_id = (record.raw or {}).get("product_id") or get_default_product_id()
+        profile = get_product_profile(product_id)
+
+        # Compute MKT from temperature history if TelemetryAgent is available.
+        history = self._tel.get_history(record.shipment_id) if self._tel else [record]
+        mkt_c = self._mean_kinetic_temperature_c(history)
+
+        # Base probability from MKT relative to allowed range.
+        # If MKT is within [temp_min, temp_max], start near zero.
+        temp_min = profile.temp_min_c if profile else TEMP_MIN_C
+        temp_max = profile.temp_max_c if profile else TEMP_MAX_C
+
+        if mkt_c is None:
+            base = 0.0
+        elif temp_min <= mkt_c <= temp_max:
+            base = 0.05 if anomalies else 0.0
+        else:
+            # Scale by degrees outside range (steeper for ultra-cold chain).
+            span = max(1.0, (temp_max - temp_min))
+            if mkt_c > temp_max:
+                deg = mkt_c - temp_max
+            else:
+                deg = temp_min - mkt_c
+            base = min(0.25 + (deg / max(2.0, span * 0.15)) * 0.25, 0.95)
+
+        # Excursion window: count time above excursion_max_temp_c for refrigerated products
+        # (and time above temp_max for ultra-cold).
+        excursion_prob = 0.0
+        excursion_hours = self._excursion_hours(history, profile)
+        allowed = float(profile.excursion_max_hours) if profile else 0.0
+        if allowed <= 0 and excursion_hours > 0 and profile and profile.excursion_max_hours <= 0:
+            excursion_prob = 0.9
+        elif excursion_hours > allowed > 0:
+            excursion_prob = min(0.3 + (excursion_hours - allowed) / max(1.0, allowed) * 0.4, 0.9)
+
+        # Severity contributions from anomalies (bounded).
+        severity_bonus = 0.0
+        for a in anomalies:
+            if a.severity == Severity.CRITICAL:
+                severity_bonus += 0.10
+            elif a.severity == Severity.HIGH:
+                severity_bonus += 0.05
+            elif a.severity == Severity.MEDIUM:
+                severity_bonus += 0.02
+        severity_bonus = min(severity_bonus, 0.25)
+
+        prob = max(base, excursion_prob) + severity_bonus
+        return min(max(prob, 0.0), 1.0)
+
+    # ------------------------------------------------------------------
+    # MKT helpers (P1)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _mean_kinetic_temperature_c(history: List[TelemetryRecord]) -> Optional[float]:
+        """
+        Time-weighted Mean Kinetic Temperature (MKT) in °C.
+        MKT = ΔH/R / -ln( Σ(wi * exp(-ΔH/(R*Ti))) / Σ(wi) )
+        with ΔH = 83,144 J/mol and R = 8.314 J/mol/K.
+        """
+        if not history:
+            return None
+
+        # Need at least 2 points for weighting; fallback to single-point Kelvin.
+        if len(history) == 1:
+            return float(history[0].temperature_c)
+
+        delta_h = 83144.0
+        r_gas = 8.314
+
+        # Ensure chronological order.
+        hist = sorted(history, key=lambda x: x.timestamp)
+        weights = []
+        terms = []
+        for i in range(1, len(hist)):
+            prev = hist[i - 1]
+            cur = hist[i]
+            dt = max(1.0, (cur.timestamp - prev.timestamp).total_seconds())
+            # Use the later reading as representative for the interval.
+            t_k = float(cur.temperature_c) + 273.15
+            weights.append(dt)
+            terms.append(math.exp(-delta_h / (r_gas * t_k)) * dt)
+
+        denom = sum(weights)
+        if denom <= 0:
+            return float(hist[-1].temperature_c)
+
+        avg = sum(terms) / denom
+        if avg <= 0:
+            return float(hist[-1].temperature_c)
+
+        mkt_k = (delta_h / r_gas) / (-math.log(avg))
+        return float(mkt_k - 273.15)
+
+    @staticmethod
+    def _excursion_hours(history: List[TelemetryRecord], profile) -> float:
+        """Compute time in hours above excursion threshold."""
+        if len(history) < 2:
+            return 0.0
+        hist = sorted(history, key=lambda x: x.timestamp)
+        threshold = float(profile.excursion_max_temp_c) if profile else float(TEMP_MAX_C)
+        total = 0.0
+        for i in range(1, len(hist)):
+            prev = hist[i - 1]
+            cur = hist[i]
+            dt = max(0.0, (cur.timestamp - prev.timestamp).total_seconds())
+            # Count excursion if the interval endpoint is above threshold.
+            if float(cur.temperature_c) > threshold:
+                total += dt
+        return total / 3600.0
 
     # ------------------------------------------------------------------
 

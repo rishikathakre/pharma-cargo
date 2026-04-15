@@ -89,7 +89,7 @@ class CascadeOrchestrator:
     ):
         self.tel     = telemetry_agent  or TelemetryAgent()
         self.ano     = anomaly_agent    or AnomalyAgent(self.tel)
-        self.risk    = risk_agent       or RiskAgent()
+        self.risk    = risk_agent       or RiskAgent(telemetry_agent=self.tel)
         self.act     = action_agent     or ActionAgent()
         self.hitl    = approval_queue   or ApprovalQueue()
         self.audit   = audit_logger     or AuditLogger()

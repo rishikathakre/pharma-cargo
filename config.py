@@ -29,6 +29,7 @@ HUMIDITY_MAX_PCT  = 75.0   # %RH – maximum acceptable humidity
 SHOCK_MAX_G       = 3.0    # g   – maximum acceptable shock
 EXCURSION_MINUTES = 30     # minutes before sustained excursion triggers escalation
 
+
 # ---------------------------------------------------------------------------
 # Risk scoring weights
 # ---------------------------------------------------------------------------

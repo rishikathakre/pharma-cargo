@@ -21,6 +21,7 @@ from config import (
     TEMP_MIN_C,
     EXCURSION_MINUTES,
 )
+from data.product_catalogue import get_product_profile, get_default_product_id
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +85,15 @@ class AnomalyAgent:
         anomalies: List[Anomaly] = []
         now = datetime.now(timezone.utc)
 
+        product_id = (record.raw or {}).get("product_id") or get_default_product_id()
+        profile = get_product_profile(product_id)
+        # Fall back to global config thresholds if catalogue is missing.
+        temp_min = profile.temp_min_c if profile else TEMP_MIN_C
+        temp_max = profile.temp_max_c if profile else TEMP_MAX_C
+
         # --- Temperature excursion ---
-        if record.temperature_c > TEMP_MAX_C:
-            sev = Severity.CRITICAL if record.temperature_c > TEMP_MAX_C + 4 else Severity.HIGH
+        if record.temperature_c > temp_max:
+            sev = Severity.CRITICAL if record.temperature_c > temp_max + 4 else Severity.HIGH
             anomalies.append(Anomaly(
                 anomaly_type   = AnomalyType.TEMP_HIGH,
                 severity       = sev,
@@ -94,13 +101,13 @@ class AnomalyAgent:
                 container_id   = record.container_id,
                 detected_at    = now,
                 description    = (f"Temperature {record.temperature_c:.1f}°C exceeds "
-                                  f"upper limit {TEMP_MAX_C}°C"),
+                                  f"upper limit {temp_max}°C"),
                 measured_value = record.temperature_c,
-                threshold      = TEMP_MAX_C,
+                threshold      = temp_max,
             ))
 
-        if record.temperature_c < TEMP_MIN_C:
-            sev = Severity.CRITICAL if record.temperature_c < TEMP_MIN_C - 4 else Severity.HIGH
+        if record.temperature_c < temp_min:
+            sev = Severity.CRITICAL if record.temperature_c < temp_min - 4 else Severity.HIGH
             anomalies.append(Anomaly(
                 anomaly_type   = AnomalyType.TEMP_LOW,
                 severity       = sev,
@@ -108,9 +115,9 @@ class AnomalyAgent:
                 container_id   = record.container_id,
                 detected_at    = now,
                 description    = (f"Temperature {record.temperature_c:.1f}°C below "
-                                  f"lower limit {TEMP_MIN_C}°C"),
+                                  f"lower limit {temp_min}°C"),
                 measured_value = record.temperature_c,
-                threshold      = TEMP_MIN_C,
+                threshold      = temp_min,
             ))
 
         # --- Sustained temperature excursion ---
@@ -214,10 +221,15 @@ class AnomalyAgent:
         if len(history) < 2:
             return None
 
+        product_id = (record.raw or {}).get("product_id") or get_default_product_id()
+        profile = get_product_profile(product_id)
+        temp_min = profile.temp_min_c if profile else TEMP_MIN_C
+        temp_max = profile.temp_max_c if profile else TEMP_MAX_C
+
         duration = 0.0
         for i in range(len(history) - 1, 0, -1):
             r = history[i]
-            if not (TEMP_MIN_C <= r.temperature_c <= TEMP_MAX_C):
+            if not (temp_min <= r.temperature_c <= temp_max):
                 prev = history[i - 1]
                 delta = (r.timestamp - prev.timestamp).total_seconds() / 60.0
                 duration += max(delta, 0)

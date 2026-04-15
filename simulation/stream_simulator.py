@@ -30,6 +30,7 @@ from config import (
     TEMP_MAX_C,
     TEMP_MIN_C,
 )
+from data.product_catalogue import load_product_catalogue, get_default_product_id
 
 try:
     from data.dataset_loader import loader as _dataset_loader
@@ -70,6 +71,7 @@ class ShipmentState:
         carrier:      str = "GlobalConnect",
         carrier_delay_baseline: float = 2.0,
         customs_days: float = 2.0,
+        product_id: str = "",
     ):
         self.shipment_id  = shipment_id
         self.container_id = container_id
@@ -82,6 +84,7 @@ class ShipmentState:
         self.carrier     = carrier
         self.carrier_delay_baseline = carrier_delay_baseline
         self.customs_days = customs_days
+        self.product_id   = product_id or get_default_product_id()
 
         # TODO: GPS tracking — integrate with real flight/telematics API
         # (e.g. FlightAware, OnAsset SDK) to provide meaningful location updates.
@@ -91,7 +94,13 @@ class ShipmentState:
         self.altitude_m  = 0.0
 
         # Sensor state
-        self.temperature_c  = random.uniform(TEMP_MIN_C + 0.5, TEMP_MAX_C - 0.5)
+        # Initialize around the product's safe range when possible.
+        profiles = load_product_catalogue()
+        profile = profiles.get(self.product_id)
+        # If catalogue is missing, fall back to config defaults.
+        tmin = profile.temp_min_c if profile else TEMP_MIN_C
+        tmax = profile.temp_max_c if profile else TEMP_MAX_C
+        self.temperature_c  = random.uniform(tmin + 0.5, tmax - 0.5) if tmax - tmin >= 2 else tmax
         self.humidity_pct   = random.uniform(40.0, 65.0)
         self.shock_g        = 0.0
         self.battery_pct    = 100.0
@@ -125,6 +134,8 @@ class ShipmentState:
             "carrier":        self.carrier,
             "origin":         self.origin,
             "destination":    self.destination,
+            # Product context
+            "product_id":     self.product_id,
         }
 
     # ------------------------------------------------------------------
@@ -220,6 +231,16 @@ class StreamSimulator:
             else:
                 carrier = None
 
+            # Pick a product profile (weighted toward standard refrigerated vaccines).
+            product_ids = list(load_product_catalogue().keys())
+            if not product_ids:
+                product_ids = [get_default_product_id()]
+            product_weights = [
+                0.15 if pid == "mRNA-COVID" else 0.65 if pid == "VACC-STANDARD" else 0.20
+                for pid in product_ids
+            ]
+            product_id = random.choices(product_ids, weights=product_weights, k=1)[0]
+
             self._shipments.append(ShipmentState(
                 shipment_id             = f"SHP-{1000 + i:04d}",
                 container_id            = f"CNT-{2000 + i:04d}",
@@ -229,6 +250,7 @@ class StreamSimulator:
                 carrier                 = carrier.name      if carrier else "GlobalConnect",
                 carrier_delay_baseline  = carrier.avg_delay_hours if carrier else 2.0,
                 customs_days            = route.customs_clearance_days if route else 2.0,
+                product_id              = product_id,
             ))
 
     def stream(
