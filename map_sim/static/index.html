@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pharma Cargo – Map Simulation (Isolated)</title>
+
+    <!-- Leaflet (CDN) -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <div class="sidebar">
+        <div class="title">Map Simulation (Isolated)</div>
+        <div class="sub">
+          OpenStreetMap + Leaflet. Routes from <code>data/raw/pharma_routes.csv</code> (if present).
+        </div>
+
+        <div class="card">
+          <div class="card-title">Route</div>
+
+          <label class="label">From</label>
+          <select id="originSelect" class="input"></select>
+          <div class="row">
+            <input id="originLat" class="input" placeholder="origin lat (optional)" />
+            <input id="originLon" class="input" placeholder="origin lon (optional)" />
+          </div>
+
+          <label class="label">To</label>
+          <select id="destSelect" class="input"></select>
+          <div class="row">
+            <input id="destLat" class="input" placeholder="dest lat (optional)" />
+            <input id="destLon" class="input" placeholder="dest lon (optional)" />
+          </div>
+
+          <label class="label">Presentation speed</label>
+          <div class="row">
+            <input id="durationSeconds" class="input" type="number" min="5" value="45" />
+            <input id="speedMultiplier" class="input" type="number" min="1" value="60" />
+          </div>
+          <div class="hint">
+            Trip duration (sec) controls how long the marker takes on screen. Speed multiplier accelerates wall-clock time.
+          </div>
+
+          <div class="row">
+            <button id="startBtn" class="btn primary">Start</button>
+            <button id="stopBtn" class="btn">Stop</button>
+          </div>
+
+          <div id="status" class="status"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Active shipment</div>
+          <div id="activeInfo" class="mono small">None</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">How to use</div>
+          <div class="small">
+            - Pick <b>From</b> and <b>To</b> and press <b>Start</b>.<br/>
+            - Click the moving marker to see the route highlighted.<br/>
+            - If a location isn't recognized, paste coordinates in the optional boxes.
+          </div>
+        </div>
+      </div>
+
+      <div class="map-wrap">
+        <div id="map"></div>
+      </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+
