@@ -117,6 +117,9 @@ WEATHER_ZONES = [
     },
 ]
 
+# Quick lookup by code for overrides.
+WEATHER_BY_CODE = {z["code"]: z for z in WEATHER_ZONES}
+
 # How often dummy weather changes (wall-clock seconds).
 WEATHER_REFRESH_SEC = 6.0
 
@@ -143,6 +146,18 @@ def _pick_weather(rng: random.Random) -> dict:
         "radius_km": float(rng.choice([40, 60, 80, 110])),
     }
 
+def _weather_from_code(code: str, rng: random.Random) -> dict:
+    z = WEATHER_BY_CODE.get(code)
+    if not z:
+        return _pick_weather(rng)
+    return {
+        "code": z["code"],
+        "label": z["label"],
+        "color": z["color"],
+        "severity": float(z["severity"]),
+        "radius_km": float(rng.choice([40, 60, 80, 110])),
+    }
+
 
 def _weather_for(seed: int, bucket: int, which: str) -> dict:
     """
@@ -152,6 +167,16 @@ def _weather_for(seed: int, bucket: int, which: str) -> dict:
     salt = 1009 if which == "origin" else 2003
     rng = random.Random(seed + salt + (bucket * 7919))
     return _pick_weather(rng)
+
+
+def _weather_for_override(seed: int, bucket: int, which: str, override_code: Optional[str]) -> dict:
+    if not override_code or override_code.upper() == "RANDOM":
+        return _weather_for(seed, bucket, which)
+    # When overridden, keep the weather TYPE fixed (non-random) for demo control.
+    # We intentionally do NOT vary by time bucket.
+    salt = 3001 if which == "origin" else 4001
+    rng = random.Random(seed + salt)
+    return _weather_from_code(override_code.upper(), rng)
 
 
 def _haversine_km(a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -173,6 +198,15 @@ def _lerp(a: float, b: float, t: float) -> float:
 def _interp_latlon(a: Tuple[float, float], b: Tuple[float, float], t: float) -> Tuple[float, float]:
     # Simple linear interpolation is fine for demo distances.
     return (_lerp(a[0], b[0], t), _lerp(a[1], b[1], t))
+
+
+def _ease_in_out(t: float) -> float:
+    """
+    Smooth ease-in/ease-out for nicer motion.
+    Uses smoothstep: 3t^2 - 2t^3 (monotonic, 0->1, zero slope at ends).
+    """
+    t = max(0.0, min(1.0, t))
+    return t * t * (3.0 - 2.0 * t)
 
 
 def _load_routes() -> List[dict]:
@@ -227,6 +261,8 @@ class CreateSimRequest(BaseModel):
     shipment_id: Optional[str] = None
     # Weather is dummy/demo-only; seed lets you make a run repeatable.
     weather_seed: Optional[int] = None
+    origin_weather: Optional[str] = None   # e.g. "CALM" | "STORM" | "RANDOM"
+    destination_weather: Optional[str] = None
 
 
 class CreateSimResponse(BaseModel):
@@ -242,6 +278,8 @@ class CreateSimResponse(BaseModel):
     speed_multiplier: float
     weather_origin: dict
     weather_destination: dict
+    origin_weather_override: Optional[str] = None
+    destination_weather_override: Optional[str] = None
 
 
 @dataclass
@@ -256,6 +294,8 @@ class Simulation:
     duration_seconds: float
     speed_multiplier: float
     weather_seed: int
+    origin_weather_override: Optional[str] = None
+    destination_weather_override: Optional[str] = None
 
     # runtime state
     phase: str = "WAIT_TAKEOFF"  # WAIT_TAKEOFF | ENROUTE | HOLDING | ARRIVED
@@ -268,8 +308,8 @@ class Simulation:
     def current_weather(self, now: float) -> tuple[dict, dict]:
         b = self._bucket(now)
         return (
-            _weather_for(self.weather_seed, b, "origin"),
-            _weather_for(self.weather_seed, b, "destination"),
+            _weather_for_override(self.weather_seed, b, "origin", self.origin_weather_override),
+            _weather_for_override(self.weather_seed, b, "destination", self.destination_weather_override),
         )
 
     def update_phase(self, now: float) -> None:
@@ -326,7 +366,8 @@ class Simulation:
         elapsed = (now - start) * self.speed_multiplier
         if self.duration_seconds <= 0:
             return 1.0
-        return max(0.0, min(1.0, elapsed / self.duration_seconds))
+        linear = max(0.0, min(1.0, elapsed / self.duration_seconds))
+        return _ease_in_out(linear)
 
     def current_position(self, now: float) -> Tuple[float, float]:
         self.update_phase(now)
@@ -451,8 +492,8 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
     seed = int(req.weather_seed) if req.weather_seed is not None else int(uuid.uuid4().int % 1_000_000_000)
     now = time.monotonic()
     b = int(max(0.0, now - now) / WEATHER_REFRESH_SEC)  # always 0 at creation
-    w_origin = _weather_for(seed, b, "origin")
-    w_dest = _weather_for(seed, b, "destination")
+    w_origin = _weather_for_override(seed, b, "origin", req.origin_weather)
+    w_dest = _weather_for_override(seed, b, "destination", req.destination_weather)
 
     sim = Simulation(
         sim_id=sim_id,
@@ -465,6 +506,8 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
         duration_seconds=float(req.duration_seconds),
         speed_multiplier=float(req.speed_multiplier),
         weather_seed=seed,
+        origin_weather_override=req.origin_weather,
+        destination_weather_override=req.destination_weather,
     )
     SIMS[sim_id] = sim
 
@@ -481,7 +524,30 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
         speed_multiplier=sim.speed_multiplier,
         weather_origin=w_origin,
         weather_destination=w_dest,
+        origin_weather_override=req.origin_weather,
+        destination_weather_override=req.destination_weather,
     )
+
+
+class WeatherControlRequest(BaseModel):
+    origin_weather: Optional[str] = None
+    destination_weather: Optional[str] = None
+
+
+@app.post("/api/sim/{sim_id}/weather")
+def set_weather(sim_id: str, body: WeatherControlRequest) -> dict:
+    sim = SIMS.get(sim_id)
+    if not sim:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    if body.origin_weather is not None:
+        sim.origin_weather_override = body.origin_weather
+    if body.destination_weather is not None:
+        sim.destination_weather_override = body.destination_weather
+    return {
+        "sim_id": sim_id,
+        "origin_weather_override": sim.origin_weather_override,
+        "destination_weather_override": sim.destination_weather_override,
+    }
 
 
 @app.get("/api/sim/{sim_id}")

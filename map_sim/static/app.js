@@ -219,6 +219,8 @@ async function startSim() {
     destination_lon: parseNum("destLon"),
     duration_seconds: durationSeconds,
     speed_multiplier: speedMultiplier,
+    origin_weather: document.getElementById("originWeather")?.value || "RANDOM",
+    destination_weather: document.getElementById("destWeather")?.value || "RANDOM",
   };
 
   let sim;
@@ -322,6 +324,25 @@ async function startSim() {
   }, 300);
 }
 
+async function applyWeatherOverrides() {
+  if (!activeSimId) {
+    setStatus("No active simulation to control.");
+    return;
+  }
+  const origin_weather = document.getElementById("originWeather")?.value || undefined;
+  const destination_weather = document.getElementById("destWeather")?.value || undefined;
+  try {
+    await fetchJSON(`/api/sim/${activeSimId}/weather`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ origin_weather, destination_weather }),
+    });
+    setStatus("Weather overrides applied.");
+  } catch (e) {
+    setStatus(`Weather override failed: ${e.message}`);
+  }
+}
+
 function stopSim() {
   setStatus("Stopped.");
   stopPolling();
@@ -331,6 +352,8 @@ function stopSim() {
 
 document.getElementById("startBtn").addEventListener("click", startSim);
 document.getElementById("stopBtn").addEventListener("click", stopSim);
+document.getElementById("originWeather")?.addEventListener("change", applyWeatherOverrides);
+document.getElementById("destWeather")?.addEventListener("change", applyWeatherOverrides);
 
 initMap();
 loadOptions();
