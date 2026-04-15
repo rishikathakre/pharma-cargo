@@ -4,12 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pharma Cargo — Map Simulation</title>
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
+
+    <!-- Leaflet served locally — avoids CDN blocks -->
+    <link rel="stylesheet" href="/static/leaflet.css" />
+
     <style>
       :root {
         --bg: #0b1220;
@@ -19,11 +17,6 @@
         --muted: #9ca3af;
         --border: rgba(148, 163, 184, 0.22);
         --shadow: 0 12px 50px rgba(0, 0, 0, 0.35);
-        --green: #22c55e;
-        --amber: #eab308;
-        --orange: #f97316;
-        --red: #dc2626;
-        --blue: #60a5fa;
       }
 
       html,
@@ -108,12 +101,6 @@
       .grid2 {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-
-      .grid3 {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
         gap: 10px;
       }
 
@@ -355,11 +342,7 @@
       </div>
     </div>
 
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
+    <script src="/static/leaflet.js"></script>
     <script src="/static/app.js"></script>
   </body>
 </html>

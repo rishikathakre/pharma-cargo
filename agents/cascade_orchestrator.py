@@ -284,7 +284,7 @@ class CascadeOrchestrator:
         self.act.register_handler(RA.COLD_STORAGE_RESCUE,
             lambda a: self._handle_cold_storage_rescue(a))
         self.act.register_handler(RA.REROUTE_SHIPMENT,
-            lambda a: self.reroute.suggest(a))
+            lambda a: self._handle_reroute_shipment(a))
         self.act.register_handler(RA.CUSTOMS_ESCALATION,
             lambda a: self.reroute.escalate_customs(a))
         self.act.register_handler(RA.QUARANTINE_PRODUCT,
@@ -329,6 +329,40 @@ class CascadeOrchestrator:
             )
 
         return result
+
+    def _handle_reroute_shipment(self, assessment: RiskAssessment) -> dict:
+        """
+        Full reroute cascade:
+          1. Run 3-path planner → choose best viable path
+          2. Always fire hospital reroute alert (mandatory per GDP §9.3)
+          3. Update inventory forecast to reflect new ETA
+        """
+        plan = self.reroute.plan_reroute(assessment)
+
+        # Hospital alert is MANDATORY on any reroute — fires regardless of other actions
+        hospital = self.hosp.notify_reroute(assessment, plan)
+        logger.info(
+            "[%s] Reroute plan chosen: %s  ETA=%.1fh  margin=%.1fh  viable=%s",
+            assessment.shipment_id,
+            plan.chosen_path,
+            plan.eta_hours,
+            plan.margin_hours,
+            plan.viable,
+        )
+
+        # Update inventory forecast with reroute ETA
+        forecast = self.inv.update_forecast(
+            shipment_id   = assessment.shipment_id,
+            delay_hours   = plan.eta_hours,
+            spoilage_prob = assessment.spoilage_prob,
+            product_ids   = ["VACCINE-COLD-CHAIN"],
+        )
+
+        return {
+            "reroute_plan":   plan.to_dict(),
+            "hospital_alert": hospital,
+            "forecast_update": forecast,
+        }
 
     def _handle_cold_storage_rescue(self, assessment: RiskAssessment) -> dict:
         """Request cold-storage rescue and update downstream inventory forecast."""

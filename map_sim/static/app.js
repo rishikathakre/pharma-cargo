@@ -609,7 +609,8 @@ async function startSim() {
       }
 
       if (state.phase === "WAIT_TAKEOFF") {
-        setStatus(`Holding at origin (weather: ${state.weather_origin?.label || "unknown"})`);
+        const reason = state.wait_reason || `weather: ${state.weather_origin?.label || "unknown"}`;
+        setStatus(`⏳ Waiting at origin — ${reason}`);
       } else if (state.phase === "HOLDING") {
         setStatus(`Holding near destination (weather: ${state.weather_destination?.label || "unknown"})`);
       }
