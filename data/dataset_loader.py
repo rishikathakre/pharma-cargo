@@ -30,7 +30,7 @@ import os
 import statistics
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +161,12 @@ class DatasetLoader:
     # ------------------------------------------------------------------
 
     def _load_logistics_performance(self) -> None:
+        # Prefer pharma-realistic carrier profiles if present (synthetic but credible).
+        pharma_path = _DATA_DIR / "pharma_carriers.csv"
+        if pharma_path.exists():
+            self._load_pharma_carriers(pharma_path)
+            return
+
         path = _DATA_DIR / "logistics_performance.csv"
         with open(path, encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))
@@ -190,8 +196,45 @@ class DatasetLoader:
                 reliability_score = round(score, 3),
             )
 
+    def _load_pharma_carriers(self, path: Path) -> None:
+        """
+        Load carrier profiles from pharma_carriers.csv.
+        Expected columns:
+          carrier,region,avg_delay_hours,damage_claims_count,pharma_certified,shipments_processed
+        """
+        with open(path, encoding="utf-8-sig") as f:
+            rows = list(csv.DictReader(f))
+
+        delays = [float(r.get("avg_delay_hours") or 0) for r in rows if r.get("avg_delay_hours")]
+        claims = [int(float(r.get("damage_claims_count") or 0)) for r in rows]
+        max_delay  = max(delays) if delays else 1.0
+        max_claims = max(claims) if claims else 1.0
+
+        for r in rows:
+            name = (r.get("carrier") or "").strip()
+            if not name:
+                continue
+            avg_delay = float(r.get("avg_delay_hours") or 0.0)
+            dmg_claims = int(float(r.get("damage_claims_count") or 0))
+            norm_delay  = avg_delay / (max_delay or 1.0)
+            norm_claims = dmg_claims / (max_claims or 1.0)
+            score = 1.0 - (0.6 * norm_delay + 0.4 * norm_claims)
+            # Small bump for pharma-certified carriers (kept bounded).
+            pharma_cert = str(r.get("pharma_certified") or "").strip().lower() in ("true", "1", "yes", "y")
+            if pharma_cert:
+                score = min(1.0, score + 0.05)
+
+            self.carrier_profiles[name] = CarrierProfile(
+                name=name,
+                avg_delay_hours=round(avg_delay, 2),
+                damage_claims=dmg_claims,
+                reliability_score=round(max(0.0, score), 3),
+            )
+
     def _load_shipments(self) -> None:
-        path = _DATA_DIR / "shipment.csv"
+        # Prefer pharma-realistic multimodal routes if present.
+        pharma_path = _DATA_DIR / "pharma_routes.csv"
+        path = pharma_path if pharma_path.exists() else (_DATA_DIR / "shipment.csv")
         with open(path, encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))
 

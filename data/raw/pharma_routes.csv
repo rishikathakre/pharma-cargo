@@ -1,0 +1,81 @@
+shipment_id,type,date,product_category,origin,O_Country,destination,D_Country,value,freight_cost,customs_clearance_time_days,delivery_status
+PHR-0001,Air Freight,2025-01-03,mRNA-COVID,JFK Airport,USA,Heathrow Airport,UK,1950000,52000,1.2,On-Time
+PHR-0002,Air Freight,2025-01-04,VACC-STANDARD,Frankfurt Airport,Germany,Mumbai Airport,India,420000,18000,2.8,Delayed
+PHR-0003,Air Freight,2025-01-05,BIO-SPECIALTY,Pudong Airport,China,O'Hare Airport,USA,980000,24000,3.1,On-Time
+PHR-0004,Sea Freight,2025-01-06,VACC-STANDARD,Port of Rotterdam,Netherlands,Port of Singapore,Singapore,380000,62000,4.5,Delayed
+PHR-0005,Air Freight,2025-01-07,VACC-STANDARD,Zurich Airport,Switzerland,Heathrow Airport,UK,260000,12000,1.3,On-Time
+PHR-0006,Air Freight,2025-01-08,BIO-SPECIALTY,Basel EuroAirport,Switzerland,Changi Airport,Singapore,1250000,28000,2.4,Delayed
+PHR-0007,Sea Freight,2025-01-09,VACC-STANDARD,Port of Antwerp,Belgium,Port of New York and New Jersey,USA,340000,71000,3.9,On-Time
+PHR-0008,Air Freight,2025-01-10,mRNA-COVID,Heathrow Airport,UK,Charles de Gaulle Airport,France,1800000,41000,1.1,On-Time
+PHR-0009,Air Freight,2025-01-11,VACC-STANDARD,Narita Airport,Japan,Sydney Airport,Australia,310000,16000,2.0,On-Time
+PHR-0010,Sea Freight,2025-01-12,VACC-STANDARD,Port of Los Angeles,USA,Port of Yokohama,Japan,290000,68000,5.2,Delayed
+PHR-0011,Air Freight,2025-01-13,BIO-SPECIALTY,O'Hare Airport,USA,Mexico City Airport,Mexico,820000,22000,2.7,On-Time
+PHR-0012,Air Freight,2025-01-14,VACC-STANDARD,Mumbai Airport,India,King Khalid Airport,Saudi Arabia,240000,14000,2.2,Delayed
+PHR-0013,Sea Freight,2025-01-15,VACC-STANDARD,Port of Singapore,Singapore,Port of Melbourne,Australia,265000,59000,4.3,On-Time
+PHR-0014,Air Freight,2025-01-16,mRNA-COVID,Changi Airport,Singapore,Incheon Airport,South Korea,1750000,43000,1.7,On-Time
+PHR-0015,Air Freight,2025-01-17,VACC-STANDARD,Heathrow Airport,UK,JFK Airport,USA,355000,17000,1.6,Delayed
+PHR-0016,Sea Freight,2025-01-18,VACC-STANDARD,Port of Hamburg,Germany,Port of Durban,South Africa,210000,64000,6.1,Delayed
+PHR-0017,Air Freight,2025-01-19,BIO-SPECIALTY,Charles de Gaulle Airport,France,Frankfurt Airport,Germany,910000,21000,1.4,On-Time
+PHR-0018,Air Freight,2025-01-20,VACC-STANDARD,Incheon Airport,South Korea,Tan Son Nhat Airport,Vietnam,230000,15000,2.5,On-Time
+PHR-0019,Sea Freight,2025-01-21,VACC-STANDARD,Port of Santos,Brazil,Port of Algeciras,Spain,225000,61000,5.7,On-Time
+PHR-0020,Air Freight,2025-01-22,VACC-STANDARD,Frankfurt Airport,Germany,O'Hare Airport,USA,300000,16500,2.1,On-Time
+PHR-0021,Air Freight,2025-01-23,mRNA-COVID,JFK Airport,USA,Changi Airport,Singapore,2050000,56000,2.6,Delayed
+PHR-0022,Sea Freight,2025-01-24,VACC-STANDARD,Port of Long Beach,USA,Port of Singapore,Singapore,315000,72000,5.4,Delayed
+PHR-0023,Air Freight,2025-01-25,BIO-SPECIALTY,Zurich Airport,Switzerland,Dubai International Airport,UAE,1120000,25000,2.3,On-Time
+PHR-0024,Air Freight,2025-01-26,VACC-STANDARD,São Paulo–Guarulhos Airport,Brazil,Heathrow Airport,UK,280000,17500,3.0,Delayed
+PHR-0025,Sea Freight,2025-01-27,VACC-STANDARD,Port of Singapore,Singapore,Port of Tanjung Pelepas,Malaysia,145000,42000,2.8,On-Time
+PHR-0026,Air Freight,2025-01-28,BIO-SPECIALTY,O'Hare Airport,USA,Toronto Pearson Airport,Canada,760000,19500,1.9,On-Time
+PHR-0027,Air Freight,2025-01-29,VACC-STANDARD,Heathrow Airport,UK,King Shaka International Airport,South Africa,255000,18000,3.6,Delayed
+PHR-0028,Sea Freight,2025-01-30,VACC-STANDARD,Port of Rotterdam,Netherlands,Port of Jebel Ali,UAE,260000,65000,6.0,Delayed
+PHR-0029,Air Freight,2025-01-31,mRNA-COVID,Incheon Airport,South Korea,Narita Airport,Japan,1620000,39000,1.3,On-Time
+PHR-0030,Air Freight,2025-02-01,VACC-STANDARD,Mumbai Airport,India,Changi Airport,Singapore,245000,15000,2.1,On-Time
+PHR-0031,Sea Freight,2025-02-02,VACC-STANDARD,Port of New York and New Jersey,USA,Port of Rotterdam,Netherlands,310000,70000,4.1,On-Time
+PHR-0032,Air Freight,2025-02-03,BIO-SPECIALTY,Frankfurt Airport,Germany,Zurich Airport,Switzerland,870000,20500,1.2,On-Time
+PHR-0033,Air Freight,2025-02-04,VACC-STANDARD,Changi Airport,Singapore,Sydney Airport,Australia,265000,16000,2.0,Delayed
+PHR-0034,Sea Freight,2025-02-05,VACC-STANDARD,Port of Singapore,Singapore,Port of Shanghai,China,235000,54000,3.7,On-Time
+PHR-0035,Air Freight,2025-02-06,VACC-STANDARD,JFK Airport,USA,O'Hare Airport,USA,220000,11000,1.0,On-Time
+PHR-0036,Air Freight,2025-02-07,BIO-SPECIALTY,Charles de Gaulle Airport,France,Zurich Airport,Switzerland,930000,22000,1.1,On-Time
+PHR-0037,Sea Freight,2025-02-08,VACC-STANDARD,Port of Valencia,Spain,Port of Santos,Brazil,215000,60000,6.2,Delayed
+PHR-0038,Air Freight,2025-02-09,mRNA-COVID,Heathrow Airport,UK,Frankfurt Airport,Germany,1700000,40000,1.0,On-Time
+PHR-0039,Air Freight,2025-02-10,VACC-STANDARD,Dubai International Airport,UAE,Mumbai Airport,India,240000,14500,2.4,Delayed
+PHR-0040,Sea Freight,2025-02-11,VACC-STANDARD,Port of Yokohama,Japan,Port of Busan,South Korea,175000,47000,3.0,On-Time
+PHR-0041,Air Freight,2025-02-12,BIO-SPECIALTY,Toronto Pearson Airport,Canada,O'Hare Airport,USA,800000,20500,1.6,On-Time
+PHR-0042,Air Freight,2025-02-13,VACC-STANDARD,Sydney Airport,Australia,Changi Airport,Singapore,260000,15500,2.0,On-Time
+PHR-0043,Sea Freight,2025-02-14,VACC-STANDARD,Port of Durban,South Africa,Port of Singapore,Singapore,240000,63000,6.5,Delayed
+PHR-0044,Air Freight,2025-02-15,mRNA-COVID,JFK Airport,USA,Incheon Airport,South Korea,2100000,57500,2.8,Delayed
+PHR-0045,Air Freight,2025-02-16,VACC-STANDARD,Frankfurt Airport,Germany,Heathrow Airport,UK,255000,12500,1.3,On-Time
+PHR-0046,Sea Freight,2025-02-17,VACC-STANDARD,Port of Jebel Ali,UAE,Port of Mumbai,India,190000,56000,5.6,Delayed
+PHR-0047,Air Freight,2025-02-18,BIO-SPECIALTY,Changi Airport,Singapore,Dubai International Airport,UAE,1040000,24000,2.2,On-Time
+PHR-0048,Air Freight,2025-02-19,VACC-STANDARD,Heathrow Airport,UK,Charles de Gaulle Airport,France,235000,10500,1.0,On-Time
+PHR-0049,Sea Freight,2025-02-20,VACC-STANDARD,Port of Singapore,Singapore,Port of Los Angeles,USA,330000,74000,6.1,Delayed
+PHR-0050,Air Freight,2025-02-21,VACC-STANDARD,O'Hare Airport,USA,JFK Airport,USA,215000,9800,1.0,On-Time
+PHR-0051,Air Freight,2025-02-22,BIO-SPECIALTY,Narita Airport,Japan,Incheon Airport,South Korea,920000,21500,1.2,On-Time
+PHR-0052,Sea Freight,2025-02-23,VACC-STANDARD,Port of Shanghai,China,Port of Singapore,Singapore,255000,56000,3.9,On-Time
+PHR-0053,Air Freight,2025-02-24,mRNA-COVID,Frankfurt Airport,Germany,JFK Airport,USA,1900000,52000,1.7,Delayed
+PHR-0054,Air Freight,2025-02-25,VACC-STANDARD,Mumbai Airport,India,Frankfurt Airport,Germany,275000,16500,2.9,Delayed
+PHR-0055,Sea Freight,2025-02-26,VACC-STANDARD,Port of Antwerp,Belgium,Port of Rotterdam,Netherlands,165000,46000,2.3,On-Time
+PHR-0056,Air Freight,2025-02-27,BIO-SPECIALTY,Zurich Airport,Switzerland,O'Hare Airport,USA,990000,23500,2.4,On-Time
+PHR-0057,Air Freight,2025-02-28,VACC-STANDARD,Changi Airport,Singapore,Heathrow Airport,UK,295000,17500,2.5,Delayed
+PHR-0058,Sea Freight,2025-03-01,VACC-STANDARD,Port of Rotterdam,Netherlands,Port of New York and New Jersey,USA,325000,70500,4.0,On-Time
+PHR-0059,Air Freight,2025-03-02,mRNA-COVID,Incheon Airport,South Korea,Changi Airport,Singapore,1680000,41000,1.9,On-Time
+PHR-0060,Air Freight,2025-03-03,VACC-STANDARD,JFK Airport,USA,Toronto Pearson Airport,Canada,240000,12000,1.2,On-Time
+PHR-0061,Sea Freight,2025-03-04,VACC-STANDARD,Port of Singapore,Singapore,Port of Rotterdam,Netherlands,350000,76000,6.3,Delayed
+PHR-0062,Air Freight,2025-03-05,BIO-SPECIALTY,Charles de Gaulle Airport,France,Dubai International Airport,UAE,1070000,25500,2.1,On-Time
+PHR-0063,Air Freight,2025-03-06,VACC-STANDARD,Frankfurt Airport,Germany,Changi Airport,Singapore,285000,17000,2.4,Delayed
+PHR-0064,Sea Freight,2025-03-07,VACC-STANDARD,Port of Los Angeles,USA,Port of Singapore,Singapore,320000,73500,6.0,Delayed
+PHR-0065,Air Freight,2025-03-08,mRNA-COVID,JFK Airport,USA,Charles de Gaulle Airport,France,1850000,50000,1.4,On-Time
+PHR-0066,Air Freight,2025-03-09,VACC-STANDARD,Changi Airport,Singapore,Incheon Airport,South Korea,255000,15000,1.8,On-Time
+PHR-0067,Sea Freight,2025-03-10,VACC-STANDARD,Port of Yokohama,Japan,Port of Singapore,Singapore,270000,60500,4.4,On-Time
+PHR-0068,Air Freight,2025-03-11,BIO-SPECIALTY,Toronto Pearson Airport,Canada,JFK Airport,USA,780000,20000,1.3,On-Time
+PHR-0069,Air Freight,2025-03-12,VACC-STANDARD,Mumbai Airport,India,Dubai International Airport,UAE,235000,14000,2.3,Delayed
+PHR-0070,Sea Freight,2025-03-13,VACC-STANDARD,Port of Hamburg,Germany,Port of Singapore,Singapore,245000,65500,6.4,Delayed
+PHR-0071,Air Freight,2025-03-14,mRNA-COVID,Heathrow Airport,UK,JFK Airport,USA,2000000,54500,1.6,Delayed
+PHR-0072,Air Freight,2025-03-15,VACC-STANDARD,Frankfurt Airport,Germany,Charles de Gaulle Airport,France,230000,10500,1.1,On-Time
+PHR-0073,Sea Freight,2025-03-16,VACC-STANDARD,Port of Rotterdam,Netherlands,Port of Antwerp,Belgium,150000,43000,2.1,On-Time
+PHR-0074,Air Freight,2025-03-17,BIO-SPECIALTY,Zurich Airport,Switzerland,Frankfurt Airport,Germany,940000,22500,1.2,On-Time
+PHR-0075,Air Freight,2025-03-18,VACC-STANDARD,Changi Airport,Singapore,Mumbai Airport,India,250000,15000,2.2,On-Time
+PHR-0076,Sea Freight,2025-03-19,VACC-STANDARD,Port of Singapore,Singapore,Port of Jebel Ali,UAE,205000,57500,5.8,Delayed
+PHR-0077,Air Freight,2025-03-20,mRNA-COVID,Incheon Airport,South Korea,JFK Airport,USA,2120000,59000,2.9,Delayed
+PHR-0078,Air Freight,2025-03-21,VACC-STANDARD,JFK Airport,USA,Frankfurt Airport,Germany,295000,17500,1.7,On-Time
+PHR-0079,Sea Freight,2025-03-22,VACC-STANDARD,Port of Long Beach,USA,Port of Yokohama,Japan,300000,69000,5.3,Delayed
+PHR-0080,Air Freight,2025-03-23,BIO-SPECIALTY,Charles de Gaulle Airport,France,JFK Airport,USA,1010000,24500,2.0,On-Time
