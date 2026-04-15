@@ -1,21 +1,36 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Ensure project root is importable when running from subdir (e.g., `python map_sim/app.py`).
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import csv
 import math
 import random
+import threading
 import time
 import uuid
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Tuple, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from agents.cascade_orchestrator import CascadeOrchestrator, PipelineState
+from hitl.approval_queue import ApprovalQueue
 
-ROOT = Path(__file__).resolve().parents[1]
+# Shared HITL queue + orchestrator for the demo UI.
+APPROVAL_QUEUE = ApprovalQueue(timeout_sec=30)
+ORCHESTRATOR = CascadeOrchestrator(approval_queue=APPROVAL_QUEUE)
+
+
 DATA_RAW = ROOT / "data" / "raw"
 
 # Prefer pharma routes if present; otherwise fall back to shipment.csv.
@@ -127,12 +142,143 @@ WEATHER_REFRESH_SEC = 6.0
 TAKEOFF_BLOCK_SEVERITY = 0.80   # origin weather this bad => no takeoff
 LANDING_BLOCK_SEVERITY = 0.65   # destination weather this bad => holding pattern
 
+# ---------------------------------------------------------------------------
+# Congestion / queueing (demo-only)
+# ---------------------------------------------------------------------------
+#
+# We simulate airport congestion as a per-origin runway queue:
+# - Only one simulation per origin is allowed to "take off" per service interval.
+# - Congestion level increases the service interval (slower departures).
+# - Priority shipments can jump ahead in the queue (time-sensitive pharma cargo).
+#
+# This is intentionally simple, deterministic, and cheap to compute.
+#
+CONGESTION_REFRESH_SEC = 10.0  # how often congestion may change (if randomized)
+DEFAULT_CONGESTION_LEVEL = 2   # 0 (none) .. 5 (heavy)
+
+# One departure per origin every this many seconds at congestion_level=0
+RUNWAY_BASE_SERVICE_INTERVAL_SEC = 2.0
+# Additional seconds per congestion level (so level 5 feels meaningfully slower)
+RUNWAY_SERVICE_INTERVAL_PER_LEVEL_SEC = 2.0
+
 # Destination "approach" radius where landing weather matters (km).
 # Outside this, enroute cruise is not affected by weather.
 APPROACH_RADIUS_KM = 180.0
 
 # Consider the flight "arrived" once within this distance and landing weather is OK (km).
 ARRIVAL_RADIUS_KM = 15.0
+
+# Minimum wall-clock seconds a flight must spend in HOLDING before it can land.
+# Prevents instant HOLDING → ARRIVED flips when weather clears on the next bucket.
+# At typical speed_multiplier=60 this represents ~15 simulated minutes on screen.
+MIN_HOLDING_SECONDS = 15.0
+
+
+def _clamp_int(x: int, lo: int, hi: int) -> int:
+    return max(lo, min(hi, int(x)))
+
+
+class RunwayQueueManager:
+    """
+    Per-origin runway queue with congestion + priority.
+
+    - Each origin has a queue of sim_ids waiting for takeoff.
+    - Only one sim per origin can depart per computed service interval.
+    - Priority (higher int) can reorder the queue (front of line).
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._queue_by_origin: Dict[str, List[str]] = {}
+        self._last_departure_by_origin: Dict[str, float] = {}
+        self._congestion_by_origin: Dict[str, int] = {}
+
+    def set_congestion_level(self, origin: str, level: int) -> None:
+        with self._lock:
+            self._congestion_by_origin[origin] = _clamp_int(level, 0, 5)
+
+    def get_congestion_level(self, origin: str) -> int:
+        with self._lock:
+            return self._congestion_by_origin.get(origin, DEFAULT_CONGESTION_LEVEL)
+
+    def service_interval_sec(self, origin: str) -> float:
+        level = self.get_congestion_level(origin)
+        return RUNWAY_BASE_SERVICE_INTERVAL_SEC + (level * RUNWAY_SERVICE_INTERVAL_PER_LEVEL_SEC)
+
+    def enqueue(self, origin: str, sim_id: str) -> None:
+        with self._lock:
+            q = self._queue_by_origin.setdefault(origin, [])
+            if sim_id not in q:
+                q.append(sim_id)
+
+    def remove(self, origin: str, sim_id: str) -> None:
+        with self._lock:
+            q = self._queue_by_origin.get(origin)
+            if not q:
+                return
+            try:
+                q.remove(sim_id)
+            except ValueError:
+                pass
+
+    def position(self, origin: str, sim_id: str) -> Optional[int]:
+        with self._lock:
+            q = self._queue_by_origin.get(origin, [])
+            if sim_id not in q:
+                return None
+            return q.index(sim_id) + 1  # 1-based
+
+    def reorder_by_priority(self, origin: str, sims: Dict[str, "Simulation"]) -> None:
+        """
+        Sort the queue by priority descending, then FIFO within equal priority.
+        """
+        with self._lock:
+            q = self._queue_by_origin.get(origin, [])
+            if len(q) <= 1:
+                return
+            # stable sort: Python sort is stable; we preserve order within same priority
+            q.sort(key=lambda sid: getattr(sims.get(sid), "priority", 0), reverse=True)
+
+    def can_takeoff(self, sim: "Simulation", now: float, origin_weather_ok: bool) -> bool:
+        """
+        Returns True when the simulation is cleared for takeoff from its origin queue.
+        Weather is still checked by the caller; this function models congestion only.
+
+        Single-plane rule: if this sim is the only one at its origin, skip the
+        service-interval check — congestion only matters when planes are queuing.
+        """
+        origin = sim.origin_name
+        sim_id = sim.sim_id
+        with self._lock:
+            q = self._queue_by_origin.setdefault(origin, [])
+            if sim_id not in q:
+                q.append(sim_id)
+
+            # Must be at the front of the queue
+            if not q or q[0] != sim_id:
+                return False
+
+            # If weather blocks takeoff, do not consume the runway slot.
+            if not origin_weather_ok:
+                return False
+
+            # Only enforce service interval when there are multiple planes at this
+            # origin — a lone plane waiting on an otherwise empty runway is instant.
+            if len(q) > 1:
+                last = self._last_departure_by_origin.get(origin, 0.0)
+                if now - last < self.service_interval_sec(origin):
+                    return False
+
+            # Grant takeoff: consume slot and pop from queue
+            self._last_departure_by_origin[origin] = now
+            try:
+                q.pop(0)
+            except Exception:
+                pass
+            return True
+
+
+RUNWAY = RunwayQueueManager()
 
 
 def _pick_weather(rng: random.Random) -> dict:
@@ -300,7 +446,19 @@ class Simulation:
     # runtime state
     phase: str = "WAIT_TAKEOFF"  # WAIT_TAKEOFF | ENROUTE | HOLDING | ARRIVED
     enroute_start_monotonic: Optional[float] = None
+    holding_start_monotonic: Optional[float] = None
     arrived_at_monotonic: Optional[float] = None
+
+    # congestion / priority (demo-only)
+    # Higher priority moves a shipment ahead of others waiting to take off.
+    # 0 = normal, 100 = emergency/critical.
+    priority: int = 0
+    priority_reason: str = ""
+
+    # pipeline (background thread) state
+    _last_risk_state: Optional[PipelineState] = None
+    _last_telemetry: Optional[Dict[str, Any]] = None
+    _pipeline_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def _bucket(self, now: float) -> int:
         return int(max(0.0, now - self.created_at_monotonic) / WEATHER_REFRESH_SEC)
@@ -312,12 +470,29 @@ class Simulation:
             _weather_for_override(self.weather_seed, b, "destination", self.destination_weather_override),
         )
 
+    def wait_reason(self, now: float) -> str:
+        """Human-readable reason why a WAIT_TAKEOFF sim has not departed yet."""
+        if self.phase != "WAIT_TAKEOFF":
+            return ""
+        w_origin, _ = self.current_weather(now)
+        if w_origin["severity"] >= TAKEOFF_BLOCK_SEVERITY:
+            return f"Weather hold at origin: {w_origin['label']} (severity {w_origin['severity']:.2f})"
+        pos = RUNWAY.position(self.origin_name, self.sim_id)
+        if pos is not None and pos > 1:
+            interval = RUNWAY.service_interval_sec(self.origin_name)
+            return f"Runway queue position {pos} — congestion level {RUNWAY.get_congestion_level(self.origin_name)} ({interval:.0f}s between departures)"
+        return "Awaiting runway clearance"
+
     def update_phase(self, now: float) -> None:
         w_origin, w_dest = self.current_weather(now)
 
         # 1) Takeoff gate: only origin weather matters, and only before takeoff.
         if self.phase == "WAIT_TAKEOFF":
-            if w_origin["severity"] < TAKEOFF_BLOCK_SEVERITY:
+            origin_weather_ok = w_origin["severity"] < TAKEOFF_BLOCK_SEVERITY
+            # Congestion queue: must be cleared for takeoff from runway queue.
+            # Priority shipments are reordered externally (see /api/sim/{id}/priority).
+            cleared = RUNWAY.can_takeoff(self, now, origin_weather_ok)
+            if cleared:
                 self.phase = "ENROUTE"
                 self.enroute_start_monotonic = now
             return
@@ -331,6 +506,7 @@ class Simulation:
             # If we're close enough to destination, destination weather can block landing.
             if dist_to_dest <= APPROACH_RADIUS_KM and w_dest["severity"] >= LANDING_BLOCK_SEVERITY:
                 self.phase = "HOLDING"
+                self.holding_start_monotonic = now
                 return
 
             # If we're basically at destination and weather is OK, arrive.
@@ -343,14 +519,19 @@ class Simulation:
             if self.progress(now) >= 1.0:
                 if w_dest["severity"] >= LANDING_BLOCK_SEVERITY:
                     self.phase = "HOLDING"
+                    self.holding_start_monotonic = now
                 else:
                     self.phase = "ARRIVED"
                     self.arrived_at_monotonic = now
             return
 
         # 3) Holding pattern: only destination weather matters.
+        # Also require MIN_HOLDING_SECONDS to have elapsed so the plane visibly
+        # circles before landing — prevents instant HOLDING → ARRIVED flips when
+        # weather clears on the very next weather bucket.
         if self.phase == "HOLDING":
-            if w_dest["severity"] < LANDING_BLOCK_SEVERITY:
+            held_for = now - (self.holding_start_monotonic or now)
+            if w_dest["severity"] < LANDING_BLOCK_SEVERITY and held_for >= MIN_HOLDING_SECONDS:
                 self.phase = "ARRIVED"
                 self.arrived_at_monotonic = now
             return
@@ -362,8 +543,12 @@ class Simulation:
             # not making route progress
             return 0.0 if self.phase == "WAIT_TAKEOFF" else 1.0
         # ENROUTE
+        # duration_seconds is the intended on-screen animation duration in real wall-clock
+        # seconds.  speed_multiplier is NOT applied here — it only affects holding-circle
+        # angular velocity.  Mixing it into the progress formula would make a 45 s flight
+        # complete in 45/60 ≈ 0.75 s (invisible to the user).
         start = self.enroute_start_monotonic or now
-        elapsed = (now - start) * self.speed_multiplier
+        elapsed = now - start          # real wall-clock seconds since takeoff
         if self.duration_seconds <= 0:
             return 1.0
         linear = max(0.0, min(1.0, elapsed / self.duration_seconds))
@@ -380,7 +565,8 @@ class Simulation:
             lat0, lon0 = self.destination
             # radius ~ 0.12 degrees (~13km at equator) – purely visual
             radius_deg = 0.12
-            angle = (now - self.created_at_monotonic) * 1.4
+            # Scale angular velocity with speed_multiplier so circling "feels" consistent.
+            angle = (now - self.created_at_monotonic) * 1.4 * max(1.0, float(self.speed_multiplier))
             return (lat0 + math.sin(angle) * radius_deg, lon0 + math.cos(angle) * radius_deg)
         # ARRIVED
         return self.destination
@@ -390,12 +576,45 @@ class Simulation:
         w_origin, w_dest = self.current_weather(now)
         lat, lon = self.current_position(now)
         dist_to_dest = _haversine_km((lat, lon), self.destination)
+
+        # Journey timing:
+        # - scheduled_start: sim creation (acts as scheduled departure in this demo)
+        # - takeoff: when we enter ENROUTE
+        # - arrival: when we enter ARRIVED
+        takeoff_at = self.enroute_start_monotonic
+        arrived_at = self.arrived_at_monotonic
+        if arrived_at is not None:
+            total_elapsed_sec = max(0.0, arrived_at - self.created_at_monotonic)
+            airborne_sec = max(0.0, arrived_at - (takeoff_at or arrived_at))
+            ground_delay_sec = max(0.0, (takeoff_at or arrived_at) - self.created_at_monotonic)
+        else:
+            total_elapsed_sec = max(0.0, now - self.created_at_monotonic)
+            if takeoff_at is not None:
+                airborne_sec = max(0.0, now - takeoff_at)
+                ground_delay_sec = max(0.0, takeoff_at - self.created_at_monotonic)
+            else:
+                airborne_sec = 0.0
+                ground_delay_sec = total_elapsed_sec
+
+        with self._pipeline_lock:
+            last_telemetry = self._last_telemetry
+            last_risk_state = self._last_risk_state
+
+        congestion_level = RUNWAY.get_congestion_level(self.origin_name)
+        queue_position = RUNWAY.position(self.origin_name, self.sim_id) if self.phase == "WAIT_TAKEOFF" else None
+
         return {
             "sim_id": self.sim_id,
             "shipment_id": self.shipment_id,
             "origin": self.origin_name,
             "destination": self.destination_name,
             "phase": self.phase,
+            "congestion_level": congestion_level,
+            "runway_service_interval_sec": RUNWAY.service_interval_sec(self.origin_name),
+            "queue_position": queue_position,  # 1-based; only meaningful while WAIT_TAKEOFF
+            "wait_reason": self.wait_reason(now),  # non-empty only while WAIT_TAKEOFF
+            "priority": self.priority,
+            "priority_reason": self.priority_reason,
             "progress": round(self.progress(now), 4),
             "lat": round(lat, 6),
             "lon": round(lon, 6),
@@ -403,6 +622,131 @@ class Simulation:
             "distance_to_destination_km": round(dist_to_dest, 1),
             "weather_origin": w_origin,
             "weather_destination": w_dest,
+            "journey_total_elapsed_sec": round(total_elapsed_sec, 1),   # scheduled -> arrival (or now)
+            "journey_airborne_sec": round(airborne_sec, 1),             # takeoff -> arrival (or now)
+            "journey_ground_delay_sec": round(ground_delay_sec, 1),     # scheduled -> takeoff (or until now)
+            "telemetry": last_telemetry,
+            "altitude_m": (last_telemetry or {}).get("altitude_m"),
+            "last_risk_state": (
+                last_risk_state.__dict__ if last_risk_state is not None else None
+            ),
+        }
+
+    def generate_telemetry(self) -> dict:
+        """
+        Generate realistic cold-chain telemetry keyed to current phase and destination weather severity.
+        Severity is expected in [0.0, 1.0].
+        """
+        now_mono = time.monotonic()
+        # Telemetry should reflect the *current* phase; phase transitions are handled elsewhere.
+        phase = self.phase
+
+        w_origin, w_dest = self.current_weather(now_mono)
+        severity = float(w_dest.get("severity", 0.0) or 0.0)
+        severity = max(0.0, min(1.0, severity))
+
+        # Position for telemetry should match the current phase without forcing transitions.
+        if phase == "WAIT_TAKEOFF":
+            lat, lon = self.origin
+        elif phase == "ENROUTE":
+            lat, lon = _interp_latlon(self.origin, self.destination, self.progress(now_mono))
+        elif phase == "HOLDING":
+            lat0, lon0 = self.destination
+            radius_deg = 0.12
+            angle = (now_mono - self.created_at_monotonic) * 1.4 * max(1.0, float(self.speed_multiplier))
+            lat, lon = (lat0 + math.sin(angle) * radius_deg, lon0 + math.cos(angle) * radius_deg)
+        else:  # ARRIVED
+            lat, lon = self.destination
+
+        # Small deterministic jitter per sim + time slice so readings look "alive" but stable.
+        jitter_bucket = int(now_mono * 2.0)  # changes ~2x/sec max
+        rng = random.Random((hash(self.sim_id) ^ (jitter_bucket * 1_000_003)) & 0xFFFFFFFF)
+
+        # Map severity -> temperature excursion bands (conceptual mapping per spec).
+        if severity < 0.5:
+            temp_target = rng.uniform(4.0, 7.5)  # safe 2–8°C range (centered near 5°C)
+        elif severity < 0.7:
+            # Mild excursion 9–12°C
+            t = (severity - 0.5) / 0.2
+            temp_target = 9.0 + t * 3.0 + rng.uniform(-0.4, 0.4)
+        else:
+            # Serious excursion 13–18°C
+            t = (severity - 0.7) / 0.3
+            temp_target = 13.0 + t * 5.0 + rng.uniform(-0.6, 0.6)
+        temp_target = max(2.0, min(18.5, temp_target))
+
+        delay_hours = 0.0
+        flight_status = "ON_TIME"
+        customs_status = "CLEARED"
+
+        if phase == "WAIT_TAKEOFF":
+            # On ground, refrigeration stable, no delay reported yet.
+            temperature_c = rng.uniform(4.0, 6.0)
+            humidity_pct = rng.uniform(40.0, 55.0)
+            shock_g = rng.uniform(0.02, 0.08)
+            altitude_m = rng.uniform(0.0, 30.0)
+            delay_hours = 0.0
+            flight_status = "ON_TIME"
+            customs_status = "CLEARED"
+        elif phase == "ENROUTE":
+            # In flight; if weather is severe, refrigeration is under stress and delays accumulate.
+            temperature_c = temp_target
+            humidity_pct = rng.uniform(18.0, 35.0)
+            shock_g = rng.uniform(0.01, 0.06)
+            # Smooth takeoff/climb and descent/approach profile based on eased progress.
+            p = max(0.0, min(1.0, float(self.progress(now_mono))))
+            ramp = 0.12  # ~12% of route for climb and descent
+            climb = 1.0 if p >= ramp else (p / ramp)
+            descend = 1.0 if p <= (1.0 - ramp) else ((1.0 - p) / ramp)
+            alt_factor = max(0.0, min(1.0, min(climb, descend)))
+            cruise_alt_m = 10600.0
+            altitude_m = max(0.0, cruise_alt_m * alt_factor + rng.uniform(-120.0, 120.0))
+            enroute_elapsed_h = max(
+                0.0, (now_mono - (self.enroute_start_monotonic or now_mono)) / 3600.0
+            )
+            if severity > 0.6:
+                delay_hours = enroute_elapsed_h * (severity - 0.6) * 6.0
+            flight_status = "DELAYED" if delay_hours >= 0.5 else "ON_TIME"
+            customs_status = "CLEARED"
+        elif phase == "HOLDING":
+            # Circling / diversion / customs hold: explicitly delayed and holding.
+            customs_status = "HOLD"
+            flight_status = "DELAYED"
+            holding_elapsed_h = max(
+                0.0, (now_mono - (self.holding_start_monotonic or now_mono)) / 3600.0
+            )
+            delay_hours = max(1.0, holding_elapsed_h + severity * 3.0)
+            # Temperature keeps rising while time passes (cap at 18°C-ish).
+            temperature_c = min(18.0, temp_target + holding_elapsed_h * 4.0 + rng.uniform(-0.3, 0.3))
+            humidity_pct = rng.uniform(30.0, 50.0)
+            shock_g = rng.uniform(0.02, 0.09)
+            # Keep a realistic mid-altitude while circling; scale oscillation with speed_multiplier.
+            osc = math.sin((now_mono - self.created_at_monotonic) * 0.35 * max(1.0, float(self.speed_multiplier)))
+            altitude_m = max(0.0, 6100.0 + osc * 450.0 + rng.uniform(-80.0, 80.0))
+        else:  # ARRIVED
+            temperature_c = rng.uniform(4.0, 6.0)
+            humidity_pct = rng.uniform(40.0, 60.0)
+            shock_g = rng.uniform(0.01, 0.05)
+            altitude_m = 0.0
+            delay_hours = 0.0
+            flight_status = "ON_TIME"
+            customs_status = "CLEARED"
+
+        return {
+            "shipment_id": self.shipment_id,
+            "container_id": f"CNT-{self.sim_id[:8]}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "temperature_c": round(float(temperature_c), 2),
+            "humidity_pct": round(float(humidity_pct), 1),
+            "shock_g": round(float(shock_g), 3),
+            "latitude": round(float(lat), 6),
+            "longitude": round(float(lon), 6),
+            "altitude_m": round(float(altitude_m), 1),
+            "customs_status": customs_status,
+            "flight_status": flight_status,
+            "delay_hours": round(float(delay_hours), 2),
+            "phase": phase,
+            "weather_severity": round(severity, 3),
         }
 
 
@@ -510,6 +854,41 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
         destination_weather_override=req.destination_weather,
     )
     SIMS[sim_id] = sim
+    # Congestion: new sims join the runway queue for their origin.
+    RUNWAY.enqueue(sim.origin_name, sim.sim_id)
+    RUNWAY.reorder_by_priority(sim.origin_name, SIMS)
+
+    def _telemetry_loop(s: Simulation) -> None:
+        """Fast loop: update phase + telemetry every second so altitude changes smoothly."""
+        while s.phase != "ARRIVED":
+            time.sleep(1)
+            s.update_phase(time.monotonic())
+            tel = s.generate_telemetry()
+            with s._pipeline_lock:
+                s._last_telemetry = tel
+        # One final write at ARRIVED so altitude shows 0.
+        tel = s.generate_telemetry()
+        with s._pipeline_lock:
+            s._last_telemetry = tel
+
+    def _orchestrator_loop(s: Simulation) -> None:
+        """Slow loop: feed telemetry into the orchestrator every 4 s.
+        ORCHESTRATOR.run() may block up to 30 s (HITL) but that never
+        delays the telemetry loop above."""
+        while True:
+            time.sleep(4)
+            with s._pipeline_lock:
+                tel = s._last_telemetry
+            if tel is None:
+                continue
+            state = ORCHESTRATOR.run(tel)
+            with s._pipeline_lock:
+                s._last_risk_state = state
+            if s.phase == "ARRIVED":
+                return
+
+    threading.Thread(target=_telemetry_loop,    args=(sim,), daemon=True).start()
+    threading.Thread(target=_orchestrator_loop, args=(sim,), daemon=True).start()
 
     return CreateSimResponse(
         sim_id=sim_id,
@@ -548,6 +927,74 @@ def set_weather(sim_id: str, body: WeatherControlRequest) -> dict:
         "origin_weather_override": sim.origin_weather_override,
         "destination_weather_override": sim.destination_weather_override,
     }
+
+
+class PriorityControlRequest(BaseModel):
+    priority: int = Field(0, ge=0, le=100)
+    reason: str = ""
+
+
+@app.post("/api/sim/{sim_id}/priority")
+def set_priority(sim_id: str, body: PriorityControlRequest) -> dict:
+    """
+    Set priority for a shipment waiting to take off.
+    Higher priority jumps the runway queue for its origin.
+    """
+    sim = SIMS.get(sim_id)
+    if not sim:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    sim.priority = int(body.priority)
+    sim.priority_reason = (body.reason or "").strip()
+    # Reorder runway queue for this origin to reflect new priority.
+    RUNWAY.reorder_by_priority(sim.origin_name, SIMS)
+    return {
+        "sim_id": sim_id,
+        "shipment_id": sim.shipment_id,
+        "origin": sim.origin_name,
+        "priority": sim.priority,
+        "priority_reason": sim.priority_reason,
+        "queue_position": RUNWAY.position(sim.origin_name, sim.sim_id),
+        "congestion_level": RUNWAY.get_congestion_level(sim.origin_name),
+    }
+
+
+class CongestionControlRequest(BaseModel):
+    origin: str
+    congestion_level: int = Field(DEFAULT_CONGESTION_LEVEL, ge=0, le=5)
+
+
+@app.post("/api/congestion")
+def set_congestion(body: CongestionControlRequest) -> dict:
+    """
+    Control congestion level per origin.
+    0 = none (fast departures) .. 5 = heavy (slow departures).
+    """
+    origin = (body.origin or "").strip()
+    if not origin:
+        raise HTTPException(status_code=422, detail="Missing origin")
+    RUNWAY.set_congestion_level(origin, int(body.congestion_level))
+    # Reorder queue to apply any current priorities.
+    RUNWAY.reorder_by_priority(origin, SIMS)
+    return {
+        "origin": origin,
+        "congestion_level": RUNWAY.get_congestion_level(origin),
+        "service_interval_sec": RUNWAY.service_interval_sec(origin),
+    }
+
+
+@app.get("/api/congestion")
+def list_congestion() -> List[dict]:
+    """List congestion settings for origins seen so far."""
+    out: List[dict] = []
+    for origin in sorted({s.origin_name for s in SIMS.values()}):
+        out.append(
+            {
+                "origin": origin,
+                "congestion_level": RUNWAY.get_congestion_level(origin),
+                "service_interval_sec": RUNWAY.service_interval_sec(origin),
+            }
+        )
+    return out
 
 
 @app.get("/api/sim/{sim_id}")

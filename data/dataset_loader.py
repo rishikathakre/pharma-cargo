@@ -253,7 +253,8 @@ class DatasetLoader:
                 continue
 
     def _load_vaccinations(self) -> None:
-        path = _DATA_DIR / "us_state_vaccinations.csv"
+        path = _DATA_DIR /"to_use"/ "us_state_vaccinations.csv"
+        
         latest: Dict[str, dict] = {}
 
         with open(path, encoding="utf-8-sig") as f:

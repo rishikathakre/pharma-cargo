@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Map Simulation</title>
+
+    <!-- Leaflet served locally — avoids CDN tracking-prevention blocks -->
+    <link rel="stylesheet" href="/static/leaflet.css" />
+    <script src="/static/leaflet.js"></script>
+
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #0b1220;
+        --panel: rgba(255, 255, 255, 0.08);
+        --border: rgba(255, 255, 255, 0.14);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.7);
+        --accent: #60a5fa;
+        --danger: #fb7185;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans",
+          "Apple Color Emoji", "Segoe UI Emoji";
+        background: radial-gradient(1200px 700px at 20% 0%, #1f2a44, var(--bg));
+        color: var(--text);
+      }
+      .wrap {
+        height: 100%;
+        display: grid;
+        grid-template-columns: 380px 1fr;
+      }
+      .panel {
+        padding: 14px 14px 18px;
+        border-right: 1px solid var(--border);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+        backdrop-filter: blur(10px);
+      }
+      h1 {
+        font-size: 16px;
+        margin: 4px 0 12px;
+        letter-spacing: 0.4px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      select,
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--text);
+        outline: none;
+      }
+      input::placeholder {
+        color: rgba(255, 255, 255, 0.45);
+      }
+      .buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 10px 0 12px;
+      }
+      button {
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: rgba(96, 165, 250, 0.18);
+        color: var(--text);
+        cursor: pointer;
+        border: 1px solid rgba(96, 165, 250, 0.35);
+      }
+      button:hover {
+        background: rgba(96, 165, 250, 0.28);
+      }
+      #stopBtn {
+        background: rgba(251, 113, 133, 0.14);
+        border-color: rgba(251, 113, 133, 0.35);
+      }
+      #stopBtn:hover {
+        background: rgba(251, 113, 133, 0.22);
+      }
+      #status {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.22);
+        color: var(--muted);
+        min-height: 40px;
+      }
+      #activeInfo {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.22);
+        color: var(--muted);
+        white-space: pre-wrap;
+        overflow: auto;
+        max-height: calc(100vh - 430px);
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+      .hint {
+        margin-top: 10px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.55);
+        line-height: 1.35;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <aside class="panel">
+        <h1>Pharma Cargo Map Simulation</h1>
+
+        <div class="row">
+          <div>
+            <label for="originSelect">Origin</label>
+            <select id="originSelect"></select>
+          </div>
+          <div>
+            <label for="destSelect">Destination</label>
+            <select id="destSelect"></select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="durationSeconds">Duration seconds</label>
+            <input id="durationSeconds" type="number" min="1" step="1" value="45" />
+          </div>
+          <div>
+            <label for="speedMultiplier">Speed multiplier</label>
+            <input id="speedMultiplier" type="number" min="1" step="1" value="60" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="originWeather">Origin weather</label>
+            <select id="originWeather">
+              <option value="RANDOM">RANDOM</option>
+              <option value="CALM">CALM</option>
+              <option value="RAIN">RAIN</option>
+              <option value="STORM">STORM</option>
+            </select>
+          </div>
+          <div>
+            <label for="destWeather">Destination weather</label>
+            <select id="destWeather">
+              <option value="RANDOM">RANDOM</option>
+              <option value="CALM">CALM</option>
+              <option value="RAIN">RAIN</option>
+              <option value="STORM">STORM</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="originLat">Origin lat</label>
+            <input id="originLat" type="number" step="0.000001" placeholder="auto" />
+          </div>
+          <div>
+            <label for="originLon">Origin lon</label>
+            <input id="originLon" type="number" step="0.000001" placeholder="auto" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="destLat">Destination lat</label>
+            <input id="destLat" type="number" step="0.000001" placeholder="auto" />
+          </div>
+          <div>
+            <label for="destLon">Destination lon</label>
+            <input id="destLon" type="number" step="0.000001" placeholder="auto" />
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="startBtn">Start</button>
+          <button id="stopBtn">Stop</button>
+        </div>
+
+        <div id="status">Loading…</div>
+        <pre id="activeInfo">None</pre>
+        <div class="hint">
+          Tip: use weather overrides to force holding/delays. The server polls every ~300ms; pipeline
+          runs in a background thread so the UI stays responsive during HITL waits.
+        </div>
+      </aside>
+
+      <main id="map"></main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+
