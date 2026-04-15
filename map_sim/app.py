@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import json
 import math
 import random
 import time
@@ -23,13 +22,12 @@ DATA_RAW = ROOT / "data" / "raw"
 PHARMA_ROUTES_CSV = DATA_RAW / "pharma_routes.csv"
 SHIPMENT_CSV = DATA_RAW / "shipment.csv"
 
-# Ports dataset (JSON).
-# Expected schema: list of objects with keys:
-#   CITY, STATE, COUNTRY, LATITUDE, LONGITUDE
-PORTS_JSON = DATA_RAW / "ports.json"
+# Airports dataset (CSV).
+# Expected schema (OurAirports style): includes columns `name`, `latitude_deg`, `longitude_deg`.
+US_AIRPORTS_CSV = DATA_RAW / "us-airports.csv"
 
 # Small, editable coordinate lookup for demos.
-# TODO: Replace/extend with an airport/port coordinates dataset or a geocoder.
+# NOTE: The dropdown is driven by `us-airports.csv` only (per requirement).
 COORDS: Dict[str, Tuple[float, float]] = {
     # Airports / cities (demo-friendly)
     "JFK Airport": (40.6413, -73.7781),
@@ -39,83 +37,146 @@ COORDS: Dict[str, Tuple[float, float]] = {
     "O'Hare Airport": (41.9742, -87.9073),
     "Pudong Airport": (31.1443, 121.8083),
     "Singapore Changi Airport": (1.3644, 103.9915),
-    # Ports (demo-friendly)
-    "Port of Rotterdam": (51.95, 4.14),
-    "Port of Singapore": (1.2644, 103.8222),
-    "Port of Los Angeles": (33.7366, -118.2626),
-    "Port of Long Beach": (33.7542, -118.2165),
 }
 
-def _load_ports(
-    path: Path,
-    *,
-    non_usa_count: int = 20,
-    usa_count: int = 6,
-    seed: int = 42,
-) -> tuple[Dict[str, Tuple[float, float]], List[str]]:
+
+def _load_airports(path: Path) -> tuple[Dict[str, Tuple[float, float]], List[str]]:
     """
-    Load port name -> (lat, lon) from ports.json and return a deterministic demo subset.
-
-    Requirement:
-      - include 20 ports at random apart from USA
-      - include 5-6 ports of USA
-
-    We make the sampling deterministic (seeded) so demos are repeatable.
+    Load airport name -> (lat, lon) from us-airports.csv.
+    Dropdown options will use ONLY the `name` column values from this file.
     """
     if not path.exists():
         return {}, []
 
+    out: Dict[str, Tuple[float, float]] = {}
+    names: List[str] = []
     try:
-        ports = json.loads(path.read_text(encoding="utf-8"))
+        with open(path, encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                name = (r.get("name") or "").strip()
+                lat = r.get("latitude_deg")
+                lon = r.get("longitude_deg")
+                if not name or not lat or not lon:
+                    continue
+                try:
+                    lat_f = float(lat)
+                    lon_f = float(lon)
+                except ValueError:
+                    continue
+                out.setdefault(name, (lat_f, lon_f))
+                names.append(name)
     except Exception:
         return {}, []
 
-    def display_name(p: dict) -> str:
-        city = str(p.get("CITY") or "").strip()
-        state = str(p.get("STATE") or "").strip()
-        country = str(p.get("COUNTRY") or "").strip()
-        if state:
-            return f"{city} ({state}, {country})"
-        return f"{city} ({country})"
-
-    def coords(p: dict) -> Optional[Tuple[float, float]]:
-        lat = p.get("LATITUDE")
-        lon = p.get("LONGITUDE")
-        try:
-            return (float(lat), float(lon))
-        except Exception:
-            return None
-
-    items: List[tuple[str, str, Tuple[float, float]]] = []
-    for p in ports:
-        if not isinstance(p, dict):
-            continue
-        c = coords(p)
-        if c is None:
-            continue
-        name = display_name(p)
-        country = str(p.get("COUNTRY") or "").strip()
-        if not name or not country:
-            continue
-        items.append((name, country, c))
-
-    usa = [i for i in items if i[1] == "United States"]
-    non_usa = [i for i in items if i[1] != "United States"]
-
-    rng = random.Random(seed)
-    picked_non_usa = rng.sample(non_usa, k=min(non_usa_count, len(non_usa)))
-    picked_usa = rng.sample(usa, k=min(usa_count, len(usa)))
-
-    picked = picked_non_usa + picked_usa
-    mapping: Dict[str, Tuple[float, float]] = {}
-    for name, _, c in picked:
-        mapping[name] = c
-
-    names = sorted(mapping.keys())
-    return mapping, names
+    # De-duplicate but keep CSV order stable.
+    seen = set()
+    uniq: List[str] = []
+    for n in names:
+        if n not in seen:
+            seen.add(n)
+            uniq.append(n)
+    return out, uniq
 
 
-PORT_COORDS, PORT_NAMES = _load_ports(PORTS_JSON)
+AIRPORT_COORDS, AIRPORT_NAMES = _load_airports(US_AIRPORTS_CSV)
+
+# ---------------------------------------------------------------------------
+# Dummy weather zones (demo-only)
+# ---------------------------------------------------------------------------
+
+WEATHER_ZONES = [
+    {
+        "code": "CALM",
+        "label": "Calm weather",
+        "color": "#22c55e",
+        "severity": 0.10,
+    },
+    {
+        "code": "WIND",
+        "label": "High winds",
+        "color": "#f59e0b",
+        "severity": 0.55,
+    },
+    {
+        "code": "STORM",
+        "label": "Severe storm",
+        "color": "#ef4444",
+        "severity": 0.85,
+    },
+    {
+        "code": "FOG",
+        "label": "Low visibility (fog)",
+        "color": "#94a3b8",
+        "severity": 0.40,
+    },
+    {
+        "code": "HEAT",
+        "label": "Extreme heat",
+        "color": "#a855f7",
+        "severity": 0.70,
+    },
+]
+
+# Quick lookup by code for overrides.
+WEATHER_BY_CODE = {z["code"]: z for z in WEATHER_ZONES}
+
+# How often dummy weather changes (wall-clock seconds).
+WEATHER_REFRESH_SEC = 6.0
+
+# Thresholds for flight behavior (0..1 severity)
+TAKEOFF_BLOCK_SEVERITY = 0.80   # origin weather this bad => no takeoff
+LANDING_BLOCK_SEVERITY = 0.65   # destination weather this bad => holding pattern
+
+# Destination "approach" radius where landing weather matters (km).
+# Outside this, enroute cruise is not affected by weather.
+APPROACH_RADIUS_KM = 180.0
+
+# Consider the flight "arrived" once within this distance and landing weather is OK (km).
+ARRIVAL_RADIUS_KM = 15.0
+
+
+def _pick_weather(rng: random.Random) -> dict:
+    z = rng.choice(WEATHER_ZONES)
+    return {
+        "code": z["code"],
+        "label": z["label"],
+        "color": z["color"],
+        "severity": float(z["severity"]),
+        # purely decorative for map visuals
+        "radius_km": float(rng.choice([40, 60, 80, 110])),
+    }
+
+def _weather_from_code(code: str, rng: random.Random) -> dict:
+    z = WEATHER_BY_CODE.get(code)
+    if not z:
+        return _pick_weather(rng)
+    return {
+        "code": z["code"],
+        "label": z["label"],
+        "color": z["color"],
+        "severity": float(z["severity"]),
+        "radius_km": float(rng.choice([40, 60, 80, 110])),
+    }
+
+
+def _weather_for(seed: int, bucket: int, which: str) -> dict:
+    """
+    Deterministic weather generator per time bucket and location role.
+    `which` should be "origin" or "destination".
+    """
+    salt = 1009 if which == "origin" else 2003
+    rng = random.Random(seed + salt + (bucket * 7919))
+    return _pick_weather(rng)
+
+
+def _weather_for_override(seed: int, bucket: int, which: str, override_code: Optional[str]) -> dict:
+    if not override_code or override_code.upper() == "RANDOM":
+        return _weather_for(seed, bucket, which)
+    # When overridden, keep the weather TYPE fixed (non-random) for demo control.
+    # We intentionally do NOT vary by time bucket.
+    salt = 3001 if which == "origin" else 4001
+    rng = random.Random(seed + salt)
+    return _weather_from_code(override_code.upper(), rng)
 
 
 def _haversine_km(a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -137,6 +198,15 @@ def _lerp(a: float, b: float, t: float) -> float:
 def _interp_latlon(a: Tuple[float, float], b: Tuple[float, float], t: float) -> Tuple[float, float]:
     # Simple linear interpolation is fine for demo distances.
     return (_lerp(a[0], b[0], t), _lerp(a[1], b[1], t))
+
+
+def _ease_in_out(t: float) -> float:
+    """
+    Smooth ease-in/ease-out for nicer motion.
+    Uses smoothstep: 3t^2 - 2t^3 (monotonic, 0->1, zero slope at ends).
+    """
+    t = max(0.0, min(1.0, t))
+    return t * t * (3.0 - 2.0 * t)
 
 
 def _load_routes() -> List[dict]:
@@ -171,7 +241,7 @@ class RouteOptions(BaseModel):
     origins: List[str]
     destinations: List[str]
     coords_known: List[str] = Field(default_factory=list)
-    ports_indexed: int = 0
+    airports_indexed: int = 0
     routes_count: int
     source_file: str
 
@@ -189,6 +259,10 @@ class CreateSimRequest(BaseModel):
     # How long the full trip should take on screen (seconds).
     duration_seconds: float = 45.0
     shipment_id: Optional[str] = None
+    # Weather is dummy/demo-only; seed lets you make a run repeatable.
+    weather_seed: Optional[int] = None
+    origin_weather: Optional[str] = None   # e.g. "CALM" | "STORM" | "RANDOM"
+    destination_weather: Optional[str] = None
 
 
 class CreateSimResponse(BaseModel):
@@ -202,6 +276,10 @@ class CreateSimResponse(BaseModel):
     destination_lon: float
     duration_seconds: float
     speed_multiplier: float
+    weather_origin: dict
+    weather_destination: dict
+    origin_weather_override: Optional[str] = None
+    destination_weather_override: Optional[str] = None
 
 
 @dataclass
@@ -215,28 +293,116 @@ class Simulation:
     created_at_monotonic: float
     duration_seconds: float
     speed_multiplier: float
+    weather_seed: int
+    origin_weather_override: Optional[str] = None
+    destination_weather_override: Optional[str] = None
 
-    def progress(self) -> float:
-        # "Fast time": speed_multiplier scales wall-clock time.
-        elapsed = (time.monotonic() - self.created_at_monotonic) * self.speed_multiplier
+    # runtime state
+    phase: str = "WAIT_TAKEOFF"  # WAIT_TAKEOFF | ENROUTE | HOLDING | ARRIVED
+    enroute_start_monotonic: Optional[float] = None
+    arrived_at_monotonic: Optional[float] = None
+
+    def _bucket(self, now: float) -> int:
+        return int(max(0.0, now - self.created_at_monotonic) / WEATHER_REFRESH_SEC)
+
+    def current_weather(self, now: float) -> tuple[dict, dict]:
+        b = self._bucket(now)
+        return (
+            _weather_for_override(self.weather_seed, b, "origin", self.origin_weather_override),
+            _weather_for_override(self.weather_seed, b, "destination", self.destination_weather_override),
+        )
+
+    def update_phase(self, now: float) -> None:
+        w_origin, w_dest = self.current_weather(now)
+
+        # 1) Takeoff gate: only origin weather matters, and only before takeoff.
+        if self.phase == "WAIT_TAKEOFF":
+            if w_origin["severity"] < TAKEOFF_BLOCK_SEVERITY:
+                self.phase = "ENROUTE"
+                self.enroute_start_monotonic = now
+            return
+
+        # 2) Enroute cruise: weather does NOT affect the flight until it reaches approach.
+        if self.phase == "ENROUTE":
+            # Compute current enroute position and distance remaining.
+            pos = _interp_latlon(self.origin, self.destination, self.progress(now))
+            dist_to_dest = _haversine_km(pos, self.destination)
+
+            # If we're close enough to destination, destination weather can block landing.
+            if dist_to_dest <= APPROACH_RADIUS_KM and w_dest["severity"] >= LANDING_BLOCK_SEVERITY:
+                self.phase = "HOLDING"
+                return
+
+            # If we're basically at destination and weather is OK, arrive.
+            if dist_to_dest <= ARRIVAL_RADIUS_KM and w_dest["severity"] < LANDING_BLOCK_SEVERITY:
+                self.phase = "ARRIVED"
+                self.arrived_at_monotonic = now
+                return
+
+            # Fallback: if progress hits 100%, attempt arrival/holding (covers short hops).
+            if self.progress(now) >= 1.0:
+                if w_dest["severity"] >= LANDING_BLOCK_SEVERITY:
+                    self.phase = "HOLDING"
+                else:
+                    self.phase = "ARRIVED"
+                    self.arrived_at_monotonic = now
+            return
+
+        # 3) Holding pattern: only destination weather matters.
+        if self.phase == "HOLDING":
+            if w_dest["severity"] < LANDING_BLOCK_SEVERITY:
+                self.phase = "ARRIVED"
+                self.arrived_at_monotonic = now
+            return
+
+    def progress(self, now: float) -> float:
+        if self.phase == "ARRIVED":
+            return 1.0
+        if self.phase in ("WAIT_TAKEOFF", "HOLDING"):
+            # not making route progress
+            return 0.0 if self.phase == "WAIT_TAKEOFF" else 1.0
+        # ENROUTE
+        start = self.enroute_start_monotonic or now
+        elapsed = (now - start) * self.speed_multiplier
         if self.duration_seconds <= 0:
             return 1.0
-        return max(0.0, min(1.0, elapsed / self.duration_seconds))
+        linear = max(0.0, min(1.0, elapsed / self.duration_seconds))
+        return _ease_in_out(linear)
 
-    def current_position(self) -> Tuple[float, float]:
-        return _interp_latlon(self.origin, self.destination, self.progress())
+    def current_position(self, now: float) -> Tuple[float, float]:
+        self.update_phase(now)
+        if self.phase == "WAIT_TAKEOFF":
+            return self.origin
+        if self.phase == "ENROUTE":
+            return _interp_latlon(self.origin, self.destination, self.progress(now))
+        if self.phase == "HOLDING":
+            # Simple holding pattern: circle around destination.
+            lat0, lon0 = self.destination
+            # radius ~ 0.12 degrees (~13km at equator) – purely visual
+            radius_deg = 0.12
+            angle = (now - self.created_at_monotonic) * 1.4
+            return (lat0 + math.sin(angle) * radius_deg, lon0 + math.cos(angle) * radius_deg)
+        # ARRIVED
+        return self.destination
 
     def to_public(self) -> dict:
-        lat, lon = self.current_position()
+        now = time.monotonic()
+        w_origin, w_dest = self.current_weather(now)
+        lat, lon = self.current_position(now)
+        dist_to_dest = _haversine_km((lat, lon), self.destination)
         return {
             "sim_id": self.sim_id,
             "shipment_id": self.shipment_id,
             "origin": self.origin_name,
             "destination": self.destination_name,
-            "progress": round(self.progress(), 4),
+            "phase": self.phase,
+            "progress": round(self.progress(now), 4),
             "lat": round(lat, 6),
             "lon": round(lon, 6),
             "distance_km": round(_haversine_km(self.origin, self.destination), 1),
+            "distance_to_destination_km": round(dist_to_dest, 1),
+            "weather_origin": w_origin,
+            "weather_destination": w_dest,
         }
 
 
@@ -256,15 +422,15 @@ def index() -> str:
 
 @app.get("/api/options", response_model=RouteOptions)
 def options() -> RouteOptions:
-    # IMPORTANT: Dropdowns are intentionally driven by ports.json subset only.
-    origins = PORT_NAMES
-    destinations = PORT_NAMES
+    # IMPORTANT: Dropdowns are intentionally driven by us-airports.csv `name` only.
+    origins = AIRPORT_NAMES
+    destinations = AIRPORT_NAMES
     source = str(PHARMA_ROUTES_CSV if PHARMA_ROUTES_CSV.exists() else SHIPMENT_CSV)
     return RouteOptions(
         origins=origins,
         destinations=destinations,
         coords_known=sorted(COORDS.keys()),
-        ports_indexed=len(PORT_COORDS),
+        airports_indexed=len(AIRPORT_COORDS),
         routes_count=len(ROUTES_CACHE),
         source_file=source,
     )
@@ -277,7 +443,7 @@ def lookup(name: str) -> dict:
 
     Sources (in order):
       1) Built-in COORDS (small curated demo set)
-      2) PORT_COORDS (from data/raw/ports.json demo subset)
+      2) AIRPORT_COORDS (from data/raw/us-airports.csv)
     """
     key = (name or "").strip()
     if not key:
@@ -285,15 +451,15 @@ def lookup(name: str) -> dict:
     if key in COORDS:
         lat, lon = COORDS[key]
         return {"found": True, "name": key, "lat": lat, "lon": lon, "source": "builtin"}
-    if key in PORT_COORDS:
-        lat, lon = PORT_COORDS[key]
-        return {"found": True, "name": key, "lat": lat, "lon": lon, "source": "ports_json"}
+    if key in AIRPORT_COORDS:
+        lat, lon = AIRPORT_COORDS[key]
+        return {"found": True, "name": key, "lat": lat, "lon": lon, "source": "us_airports_csv"}
     return {
         "found": False,
         "name": key,
         "detail": (
             "Not found. Provide lat/lon manually, add to COORDS in map_sim/app.py, "
-            "or update data/raw/ports.json."
+            "or update data/raw/us-airports.csv."
         ),
     }
 
@@ -301,15 +467,15 @@ def lookup(name: str) -> dict:
 def _resolve_point(name: str, lat: Optional[float], lon: Optional[float]) -> Tuple[float, float]:
     if name in COORDS:
         return COORDS[name]
-    if name in PORT_COORDS:
-        return PORT_COORDS[name]
+    if name in AIRPORT_COORDS:
+        return AIRPORT_COORDS[name]
     if lat is not None and lon is not None:
         return (float(lat), float(lon))
     raise HTTPException(
         status_code=422,
         detail=(
             f"Unknown location '{name}'. Provide origin_lat/origin_lon or "
-            "add it to COORDS in map_sim/app.py, or add it to data/raw/ports.json."
+            "add it to COORDS in map_sim/app.py, or add it to data/raw/us-airports.csv."
         ),
     )
 
@@ -322,6 +488,13 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
     origin = _resolve_point(req.origin, req.origin_lat, req.origin_lon)
     destination = _resolve_point(req.destination, req.destination_lat, req.destination_lon)
 
+    # Deterministic per-sim weather if seed provided; otherwise random.
+    seed = int(req.weather_seed) if req.weather_seed is not None else int(uuid.uuid4().int % 1_000_000_000)
+    now = time.monotonic()
+    b = int(max(0.0, now - now) / WEATHER_REFRESH_SEC)  # always 0 at creation
+    w_origin = _weather_for_override(seed, b, "origin", req.origin_weather)
+    w_dest = _weather_for_override(seed, b, "destination", req.destination_weather)
+
     sim = Simulation(
         sim_id=sim_id,
         shipment_id=shipment_id,
@@ -332,6 +505,9 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
         created_at_monotonic=time.monotonic(),
         duration_seconds=float(req.duration_seconds),
         speed_multiplier=float(req.speed_multiplier),
+        weather_seed=seed,
+        origin_weather_override=req.origin_weather,
+        destination_weather_override=req.destination_weather,
     )
     SIMS[sim_id] = sim
 
@@ -346,7 +522,32 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
         destination_lon=destination[1],
         duration_seconds=sim.duration_seconds,
         speed_multiplier=sim.speed_multiplier,
+        weather_origin=w_origin,
+        weather_destination=w_dest,
+        origin_weather_override=req.origin_weather,
+        destination_weather_override=req.destination_weather,
     )
+
+
+class WeatherControlRequest(BaseModel):
+    origin_weather: Optional[str] = None
+    destination_weather: Optional[str] = None
+
+
+@app.post("/api/sim/{sim_id}/weather")
+def set_weather(sim_id: str, body: WeatherControlRequest) -> dict:
+    sim = SIMS.get(sim_id)
+    if not sim:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    if body.origin_weather is not None:
+        sim.origin_weather_override = body.origin_weather
+    if body.destination_weather is not None:
+        sim.destination_weather_override = body.destination_weather
+    return {
+        "sim_id": sim_id,
+        "origin_weather_override": sim.origin_weather_override,
+        "destination_weather_override": sim.destination_weather_override,
+    }
 
 
 @app.get("/api/sim/{sim_id}")

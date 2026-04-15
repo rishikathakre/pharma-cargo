@@ -4,8 +4,6 @@ let shipmentMarker = null;
 let originMarker = null;
 let destMarker = null;
 let previewLine = null;
-let originWeatherCircle = null;
-let destWeatherCircle = null;
 let pollTimer = null;
 let activeSimId = null;
 
@@ -59,9 +57,7 @@ async function loadOptions() {
   const opts = await fetchJSON("/api/options");
   fillSelect(document.getElementById("originSelect"), opts.origins);
   fillSelect(document.getElementById("destSelect"), opts.destinations);
-  setStatus(
-    `Loaded ${opts.routes_count} routes from ${opts.source_file} (airports in dropdown: ${opts.airports_indexed})`
-  );
+  setStatus(`Loaded ${opts.routes_count} routes from ${opts.source_file} (ports in dropdown: ${opts.ports_indexed})`);
 }
 
 function clearRoute() {
@@ -84,14 +80,6 @@ function clearRoute() {
   if (destMarker) {
     map.removeLayer(destMarker);
     destMarker = null;
-  }
-  if (originWeatherCircle) {
-    map.removeLayer(originWeatherCircle);
-    originWeatherCircle = null;
-  }
-  if (destWeatherCircle) {
-    map.removeLayer(destWeatherCircle);
-    destWeatherCircle = null;
   }
 }
 
@@ -203,10 +191,6 @@ async function startSim() {
 
   const origin = document.getElementById("originSelect").value;
   const destination = document.getElementById("destSelect").value;
-  if (origin === destination) {
-    setStatus("Start failed: origin and destination cannot be the same.");
-    return;
-  }
   const durationSeconds = Number(document.getElementById("durationSeconds").value || "45");
   const speedMultiplier = Number(document.getElementById("speedMultiplier").value || "60");
 
@@ -219,8 +203,6 @@ async function startSim() {
     destination_lon: parseNum("destLon"),
     duration_seconds: durationSeconds,
     speed_multiplier: speedMultiplier,
-    origin_weather: document.getElementById("originWeather")?.value || "RANDOM",
-    destination_weather: document.getElementById("destWeather")?.value || "RANDOM",
   };
 
   let sim;
@@ -241,33 +223,47 @@ async function startSim() {
   const originLatLng = [sim.origin_lat, sim.origin_lon];
   const destLatLng = [sim.destination_lat, sim.destination_lon];
 
-  // Weather zones (dummy) around origin/destination
-  const oW = sim.weather_origin;
-  const dW = sim.weather_destination;
-  originWeatherCircle = L.circle(originLatLng, {
-    radius: (oW.radius_km || 60) * 1000,
-    color: oW.color || "#64748b",
-    fillColor: oW.color || "#64748b",
-    fillOpacity: 0.15,
-    weight: 2,
-  }).addTo(map);
-  originWeatherCircle.bindTooltip(`Origin weather: ${oW.label}`, { sticky: true });
+  // Fetch the full sea-route path from the server
+  let routePath = [originLatLng, destLatLng]; // fallback: straight line
+  try {
+    const routeData = await fetchJSON(`/api/sim/${sim.sim_id}/route`);
+    console.log("Sea route fetched:", routeData.points, "waypoints");
+    if (routeData.path && routeData.path.length > 1) {
+      routePath = routeData.path;
+    }
+  } catch (e) {
+    console.warn("Could not fetch sea route, using straight line:", e);
+  }
 
-  destWeatherCircle = L.circle(destLatLng, {
-    radius: (dW.radius_km || 60) * 1000,
-    color: dW.color || "#64748b",
-    fillColor: dW.color || "#64748b",
-    fillOpacity: 0.15,
-    weight: 2,
-  }).addTo(map);
-  destWeatherCircle.bindTooltip(`Destination weather: ${dW.label}`, { sticky: true });
+  console.log("Drawing polyline with", routePath.length, "points");
 
-  routeLine = L.polyline([originLatLng, destLatLng], {
+  routeLine = L.polyline(routePath, {
     color: "#2563eb",
-    weight: 4,
+    weight: 3,
     opacity: 0.85,
   }).addTo(map);
 
+  // Origin marker (green dot)
+  originMarker = L.circleMarker(originLatLng, {
+    radius: 7,
+    color: "#16a34a",
+    fillColor: "#4ade80",
+    fillOpacity: 0.9,
+    weight: 2,
+  }).addTo(map);
+  originMarker.bindTooltip(sim.origin, { direction: "top" });
+
+  // Destination marker (blue dot)
+  destMarker = L.circleMarker(destLatLng, {
+    radius: 7,
+    color: "#0ea5e9",
+    fillColor: "#38bdf8",
+    fillOpacity: 0.9,
+    weight: 2,
+  }).addTo(map);
+  destMarker.bindTooltip(sim.destination, { direction: "top" });
+
+  // Ship marker (red, moves along route)
   shipmentMarker = L.circleMarker(originLatLng, {
     radius: 8,
     color: "#b91c1c",
@@ -276,10 +272,7 @@ async function startSim() {
     weight: 2,
   }).addTo(map);
 
-  shipmentMarker.bindPopup("Click to show route").openPopup();
-  shipmentMarker.on("click", () => {
-    if (routeLine) routeLine.setStyle({ color: "#dc2626" });
-  });
+  shipmentMarker.bindPopup(`${sim.shipment_id}: ${sim.origin} → ${sim.destination}`).openPopup();
 
   map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
 
@@ -290,30 +283,7 @@ async function startSim() {
       const latlng = [state.lat, state.lon];
       shipmentMarker.setLatLng(latlng);
       setActiveInfo(state);
-      // Update weather zone visuals as weather changes over time
-      if (originWeatherCircle && state.weather_origin) {
-        originWeatherCircle.setStyle({
-          color: state.weather_origin.color,
-          fillColor: state.weather_origin.color,
-        });
-        originWeatherCircle.setRadius((state.weather_origin.radius_km || 60) * 1000);
-        originWeatherCircle.bindTooltip(`Origin weather: ${state.weather_origin.label}`, { sticky: true });
-      }
-      if (destWeatherCircle && state.weather_destination) {
-        destWeatherCircle.setStyle({
-          color: state.weather_destination.color,
-          fillColor: state.weather_destination.color,
-        });
-        destWeatherCircle.setRadius((state.weather_destination.radius_km || 60) * 1000);
-        destWeatherCircle.bindTooltip(`Destination weather: ${state.weather_destination.label}`, { sticky: true });
-      }
-
-      if (state.phase === "WAIT_TAKEOFF") {
-        setStatus(`Holding at origin (weather: ${state.weather_origin?.label || "unknown"})`);
-      } else if (state.phase === "HOLDING") {
-        setStatus(`Holding near destination (weather: ${state.weather_destination?.label || "unknown"})`);
-      }
-      if (state.phase === "ARRIVED") {
+      if (state.progress >= 1.0) {
         setStatus(`Arrived: ${state.shipment_id} (${state.distance_km} km)`);
         stopPolling();
       }
@@ -322,25 +292,6 @@ async function startSim() {
       stopPolling();
     }
   }, 300);
-}
-
-async function applyWeatherOverrides() {
-  if (!activeSimId) {
-    setStatus("No active simulation to control.");
-    return;
-  }
-  const origin_weather = document.getElementById("originWeather")?.value || undefined;
-  const destination_weather = document.getElementById("destWeather")?.value || undefined;
-  try {
-    await fetchJSON(`/api/sim/${activeSimId}/weather`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ origin_weather, destination_weather }),
-    });
-    setStatus("Weather overrides applied.");
-  } catch (e) {
-    setStatus(`Weather override failed: ${e.message}`);
-  }
 }
 
 function stopSim() {
@@ -352,8 +303,6 @@ function stopSim() {
 
 document.getElementById("startBtn").addEventListener("click", startSim);
 document.getElementById("stopBtn").addEventListener("click", stopSim);
-document.getElementById("originWeather")?.addEventListener("change", applyWeatherOverrides);
-document.getElementById("destWeather")?.addEventListener("change", applyWeatherOverrides);
 
 initMap();
 loadOptions();
