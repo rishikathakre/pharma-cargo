@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import List, Optional
+import threading
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -39,11 +40,25 @@ app = FastAPI(
 )
 
 _queue: Optional[ApprovalQueue] = None
+_orchestrator = None
+_sim_lock = threading.Lock()
 
 
 def set_queue(queue: ApprovalQueue) -> None:
     global _queue
     _queue = queue
+
+
+def set_orchestrator(orchestrator) -> None:
+    """Inject a CascadeOrchestrator instance that uses the same ApprovalQueue."""
+    global _orchestrator
+    _orchestrator = orchestrator
+
+
+def _get_orchestrator():
+    if _orchestrator is None:
+        raise RuntimeError("Orchestrator not initialised — call set_orchestrator() at startup.")
+    return _orchestrator
 
 
 def _get_queue() -> ApprovalQueue:
@@ -61,6 +76,11 @@ class ApproveRequest(BaseModel):
 class RejectRequest(BaseModel):
     operator: str
     notes:    str = ""
+
+
+class SimulateRequest(BaseModel):
+    shipments: int = 3
+    ticks: int = 20
 
 
 _HTML = """<!DOCTYPE html>
@@ -239,6 +259,23 @@ body {
 .apill input[type=checkbox] { cursor: pointer; accent-color: #7c3aed; }
 .decision-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid #f3e8ff; }
 
+/* ── PENDING TABLE ── */
+.ptable { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ptable thead tr { background: linear-gradient(135deg, #818cf8, #a78bfa); }
+.ptable thead th { padding: 12px 16px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #fff; white-space: nowrap; }
+.ptable tbody tr:nth-child(odd)  { background: #faf5ff; }
+.ptable tbody tr:nth-child(even) { background: #fff; }
+.ptable tbody tr:hover { background: #ede9fe; }
+.ptable tbody td { padding: 11px 16px; border-bottom: 1px solid #f0e6ff; vertical-align: top; color: #374151; }
+.ptable tbody tr:last-child td { border-bottom: none; }
+.pactions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pactions label { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; background: #f5f3ff; border: 1.5px solid #ddd6fe; color: #4c1d95; font-size: 12px; }
+.pcontrols { display: grid; grid-template-columns: 1fr; gap: 8px; min-width: 260px; }
+.pcontrols .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pcontrols input[type=text] { width: 100%; }
+.pcontrols .row .inp-op { width: 140px; }
+.pcontrols .row .inp-nt { flex: 1; min-width: 160px; }
+
 /* ── INPUTS ── */
 input[type=text], select {
   background: #fff; border: 1.5px solid #e0e7ff; border-radius: 9px;
@@ -376,7 +413,21 @@ input[type=text]:focus, select:focus {
       <span class="panel-badge pb-amber" id="badge-pending">0</span>
     </div>
     <div class="panel-body">
-      <div id="pending-list"><div class="empty">Loading&#8230;</div></div>
+      <div class="twrap" id="pending-wrap">
+        <table class="ptable">
+          <thead><tr>
+            <th>Shipment</th>
+            <th>Risk</th>
+            <th>Score</th>
+            <th>Justification</th>
+            <th>Proposed_Actions</th>
+            <th>Decision</th>
+          </tr></thead>
+          <tbody id="pending-body">
+            <tr><td colspan="6" style="text-align:center;padding:28px;color:#a78bfa">Loading&#8230;</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -495,6 +546,43 @@ function buildCard(req){
   '</div>';
 }
 
+function buildPendingTable(reqs){
+  if(!reqs.length){
+    document.getElementById('pending-body').innerHTML =
+      '<tr><td colspan="6"><div class="empty">&#10003; No pending approvals &#8212; all shipments are clear.</div></td></tr>';
+    return;
+  }
+  document.getElementById('pending-body').innerHTML = reqs.map(req=>{
+    const rl=req.risk_level||'LOW';
+    const just = esc((req.justification||'').slice(0, 220)) + ((req.justification||'').length>220?'&#8230;':'');
+    const acts=(req.proposed_actions||[]);
+    const pills = acts.length ? acts.map(a=>
+      '<label><input type="checkbox" name="act_'+req.request_id+'" value="'+a+'" checked/> '+esc(a.replace(/_/g,' '))+'</label>'
+    ).join('') : '<span style="color:#a78bfa">None</span>';
+
+    const controls =
+      '<div class="pcontrols">'+
+        '<div class="row">'+
+          '<input class="inp-op" type="text" id="op-'+req.request_id+'" placeholder="Operator"/>'+
+          '<input class="inp-nt" type="text" id="nt-'+req.request_id+'" placeholder="Notes"/>'+
+        '</div>'+
+        '<div class="row">'+
+          '<button class="btn btn-approve" onclick="decide(\\''+req.request_id+'\\',\\'approve\\')">&#10003; Approve</button>'+
+          '<button class="btn btn-reject"  onclick="decide(\\''+req.request_id+'\\',\\'reject\\')">&#10007; Reject</button>'+
+        '</div>'+
+      '</div>';
+
+    return '<tr>'+
+      '<td style="font-weight:800;color:#1e1b4b">'+esc(req.shipment_id||'—')+'<div class="mono" style="font-size:11px;color:#9ca3af;margin-top:4px">'+esc(req.request_id||'')+'</div></td>'+
+      '<td>'+rBadge(rl)+'</td>'+
+      '<td class="mono" style="font-size:12px">'+Number(req.risk_score||0).toFixed(4)+'</td>'+
+      '<td style="max-width:360px;line-height:1.45">'+just+'</td>'+
+      '<td><div class="pactions">'+pills+'</div></td>'+
+      '<td>'+controls+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
 function buildResolved(items){
   if(!items.length) return '<div class="empty">No resolved decisions yet.</div>';
   const rows=items.map(r=>{
@@ -569,7 +657,7 @@ async function refresh(){
     document.getElementById('stat-timeout').textContent=all.filter(r=>r.status==='TIMEOUT').length;
     document.getElementById('badge-pending').textContent=pend.length;
     document.getElementById('badge-resolved').textContent=res.length;
-    document.getElementById('pending-list').innerHTML=pend.length?pend.map(buildCard).join(''):'<div class="empty">&#10003; No pending approvals &#8212; all shipments are clear.</div>';
+    buildPendingTable(pend);
     document.getElementById('resolved-wrap').innerHTML=buildResolved(res);
     document.getElementById('last-refresh').textContent=new Date().toLocaleTimeString();
   }catch(e){console.warn('Refresh error:',e.message);}
@@ -660,3 +748,26 @@ def get_audit_log(
 def health():
     q = _get_queue()
     return {"status": "ok", "pending_count": len(q.pending()), "total_count": len(q.all_requests())}
+
+
+@app.post("/simulate", tags=["System"])
+def simulate(body: SimulateRequest):
+    """
+    Run the simulation using the SAME in-memory queue as the dashboard.
+    This makes pending approvals appear in the operator UI without needing
+    any external message bus.
+    """
+    orch = _get_orchestrator()
+
+    def _run():
+        from simulation.stream_simulator import StreamSimulator
+        from mock_services import start_mock_services
+
+        with _sim_lock:
+            start_mock_services()
+            sim = StreamSimulator(n_shipments=body.shipments, interval_sec=0)
+            for payload in sim.stream(max_ticks=body.ticks, realtime=False):
+                orch.run(payload)
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"status": "started", "shipments": body.shipments, "ticks": body.ticks}
