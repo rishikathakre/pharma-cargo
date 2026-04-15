@@ -253,7 +253,12 @@ class DatasetLoader:
                 continue
 
     def _load_vaccinations(self) -> None:
+        # Prefer canonical location, but allow the bundled fallback under raw/to_use/.
         path = _DATA_DIR / "us_state_vaccinations.csv"
+        if not path.exists():
+            alt = _DATA_DIR / "to_use" / "us_state_vaccinations.csv"
+            if alt.exists():
+                path = alt
         latest: Dict[str, dict] = {}
 
         with open(path, encoding="utf-8-sig") as f:

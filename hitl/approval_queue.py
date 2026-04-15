@@ -172,6 +172,26 @@ class ApprovalQueue:
         with self._lock:
             return list(self._queue.values())
 
+    def clear(self, *, pending_only: bool = True) -> int:
+        """
+        Clear requests from the queue.
+
+        By default, only clears PENDING requests (useful for demos/UI resets).
+        Returns the number of removed requests.
+        """
+        with self._lock:
+            if not pending_only:
+                n = len(self._queue)
+                self._queue.clear()
+                self._events.clear()
+                return n
+
+            to_delete = [rid for rid, r in self._queue.items() if r.status == ApprovalStatus.PENDING]
+            for rid in to_delete:
+                self._queue.pop(rid, None)
+                self._events.pop(rid, None)
+            return len(to_delete)
+
 
 # Actions that can be auto-approved on timeout (low-risk, non-destructive)
 _SAFE_AUTO_APPROVE = {
