@@ -749,6 +749,12 @@ class Simulation:
             "delay_hours": round(float(delay_hours), 2),
             "phase": phase,
             "weather_severity": round(severity, 3),
+            # Route metadata — picked up by cascade_orchestrator._node_assess_risk()
+            # so the reroute engine knows origin/destination for cold-storage lookup.
+            "origin":      self.origin_name,
+            "destination": self.destination_name,
+            "carrier":     "pharma-air-sim",   # sim-level placeholder carrier
+            "product_id":  "VACC-STANDARD",    # default; can be extended per-sim
         }
 
 
