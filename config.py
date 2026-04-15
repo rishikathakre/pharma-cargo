@@ -89,3 +89,12 @@ FDA_REGULATION = "21 CFR Part 211 / 600"
 # ---------------------------------------------------------------------------
 SIMULATION_INTERVAL_SEC = 5    # seconds between synthetic telemetry ticks
 SIMULATION_SHIPMENTS    = 3    # number of concurrent simulated shipments
+
+# ---------------------------------------------------------------------------
+# Product catalogue (loaded from data/raw/product_catalogue.json)
+# ---------------------------------------------------------------------------
+import json as _json
+
+_catalogue_path = Path(__file__).parent / "data/raw/product_catalogue.json"
+PRODUCT_CATALOGUE = _json.loads(_catalogue_path.read_text(encoding="utf-8")) if _catalogue_path.exists() else []
+PRODUCT_MAP = {p["product_id"]: p for p in PRODUCT_CATALOGUE if "product_id" in p}

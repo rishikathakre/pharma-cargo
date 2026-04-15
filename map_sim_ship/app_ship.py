@@ -247,7 +247,6 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
     return (static_dir / "index_ship.html").read_text(encoding="utf-8")
-    return (static_dir / "index.html").read_text(encoding="utf-8")
 
 
 @app.get("/api/options", response_model=RouteOptions)
