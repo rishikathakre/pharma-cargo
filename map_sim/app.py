@@ -1009,3 +1009,71 @@ def get_sim(sim_id: str) -> dict:
 def list_sims() -> List[dict]:
     return [s.to_public() for s in SIMS.values()]
 
+
+# ---------------------------------------------------------------------------
+# HITL endpoints — expose the shared ApprovalQueue over REST so the map UI
+# (or any external client) can list, approve, and reject pending decisions
+# without going through the separate HITL dashboard on port 8080.
+# ---------------------------------------------------------------------------
+
+class HITLApproveRequest(BaseModel):
+    operator:         str  = "operator"
+    approved_actions: Optional[List[str]] = None   # None = approve all
+    notes:            str  = ""
+
+
+class HITLRejectRequest(BaseModel):
+    operator: str = "operator"
+    notes:    str = ""
+
+
+@app.get("/api/hitl/pending", tags=["HITL"])
+def pending_hitl() -> List[dict]:
+    """Return all approval requests currently waiting for a human decision."""
+    return [r.to_dict() for r in APPROVAL_QUEUE.pending()]
+
+
+@app.get("/api/hitl/all", tags=["HITL"])
+def all_hitl() -> List[dict]:
+    """Return every HITL request regardless of status (pending / approved / rejected / timeout)."""
+    return [r.to_dict() for r in APPROVAL_QUEUE.all_requests()]
+
+
+@app.post("/api/hitl/{request_id}/approve", tags=["HITL"])
+def approve_hitl(request_id: str, body: HITLApproveRequest) -> dict:
+    """
+    Approve a pending HITL request.
+    Pass approved_actions as a list of action strings to do a partial approval,
+    or omit it (null) to approve all proposed actions.
+    """
+    from agents.risk_agent import RecommendedAction
+
+    req = APPROVAL_QUEUE.get(request_id)
+    if req is None:
+        raise HTTPException(status_code=404, detail=f"Request '{request_id}' not found")
+    if req.status != "PENDING":
+        raise HTTPException(status_code=409, detail=f"Request is already {req.status}")
+
+    actions = None
+    if body.approved_actions is not None:
+        try:
+            actions = [RecommendedAction(a) for a in body.approved_actions]
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+
+    updated = APPROVAL_QUEUE.approve(request_id, body.operator, actions, body.notes)
+    return updated.to_dict()
+
+
+@app.post("/api/hitl/{request_id}/reject", tags=["HITL"])
+def reject_hitl(request_id: str, body: HITLRejectRequest) -> dict:
+    """Reject a pending HITL request."""
+    req = APPROVAL_QUEUE.get(request_id)
+    if req is None:
+        raise HTTPException(status_code=404, detail=f"Request '{request_id}' not found")
+    if req.status != "PENDING":
+        raise HTTPException(status_code=409, detail=f"Request is already {req.status}")
+
+    updated = APPROVAL_QUEUE.reject(request_id, body.operator, body.notes)
+    return updated.to_dict()
+
