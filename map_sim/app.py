@@ -820,10 +820,6 @@ class Simulation:
 SIMS: Dict[str, Simulation] = {}
 
 _approval_queue = ApprovalQueue()
-<<<<<<< Updated upstream
-_orchestrator = CascadeOrchestrator(approval_queue=_approval_queue)
-_audit = AuditLogger()
-=======
 _orchestrator   = CascadeOrchestrator(approval_queue=_approval_queue)
 ORCHESTRATOR    = _orchestrator   # shared ref — overwritten by set_orchestrator() from start.py
 _audit          = AuditLogger()
@@ -840,7 +836,6 @@ def set_orchestrator(orch: CascadeOrchestrator) -> None:
     global _orchestrator, ORCHESTRATOR
     _orchestrator = orch
     ORCHESTRATOR  = orch
->>>>>>> Stashed changes
 
 def _pending_request_for_shipment(shipment_id: str) -> Optional[ApprovalRequest]:
     for r in _approval_queue.pending():
@@ -1184,7 +1179,6 @@ def list_sims() -> List[dict]:
     for sid in to_delete:
         SIMS.pop(sid, None)
     return out
-<<<<<<< Updated upstream
 
 
 @app.get("/api/audit/info")
@@ -1249,7 +1243,6 @@ def approve_hitl(request_id: str, body: ApproveRequestBody) -> dict:
     updated = _approval_queue.approve(request_id, body.operator, actions, body.notes)
     _audit.log_hitl_decision(updated)
 
-    # Execute approved actions using the latest assessment we have for this shipment.
     sim = next((s for s in SIMS.values() if s.shipment_id == updated.shipment_id), None)
     assessment = sim._last_assessment if sim else None
     if assessment is not None and updated.approved_actions:
@@ -1258,7 +1251,6 @@ def approve_hitl(request_id: str, body: ApproveRequestBody) -> dict:
         for r in results:
             _audit.log_action_result(r)
 
-    # Clear pending id from the sim cache if this was the active pending.
     if sim and sim._last_hitl_request_id == request_id:
         sim._last_hitl_request_id = None
     return updated.to_dict()
@@ -1275,97 +1267,3 @@ def reject_hitl(request_id: str, body: RejectRequestBody) -> dict:
     if sim and sim._last_hitl_request_id == request_id:
         sim._last_hitl_request_id = None
     return updated.to_dict()
-=======
->>>>>>> Stashed changes
-
-
-@app.get("/api/audit/info")
-def audit_info() -> dict:
-    return _audit.file_info()
-
-
-@app.post("/api/audit/clear")
-def audit_clear() -> dict:
-    """
-    Demo-only endpoint to truncate the audit log file.
-    Enable by setting AUDIT_ALLOW_TRUNCATE=1 in the environment.
-    """
-    try:
-        _audit.truncate()
-        return {"ok": True, "audit": _audit.file_info()}
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-
-
-@app.post("/api/demo/reset")
-def demo_reset() -> dict:
-    """
-    Demo reset: clear in-memory sims and pending HITL requests.
-    (Does NOT delete audit.jsonl; use /api/audit/clear for that when enabled.)
-    """
-    sims_before = len(SIMS)
-    SIMS.clear()
-    pending_cleared = _approval_queue.clear(pending_only=True)
-    return {"ok": True, "sims_cleared": sims_before, "hitl_pending_cleared": pending_cleared}
-
-
-class ApproveRequestBody(BaseModel):
-    operator: str = "map_operator"
-    approved_actions: Optional[List[str]] = None
-    notes: str = ""
-
-
-class RejectRequestBody(BaseModel):
-    operator: str = "map_operator"
-    notes: str = ""
-
-
-@app.get("/api/hitl/pending")
-def pending_hitl() -> List[dict]:
-    return [r.to_dict() for r in _approval_queue.pending()]
-
-
-@app.post("/api/hitl/{request_id}/approve")
-def approve_hitl(request_id: str, body: ApproveRequestBody) -> dict:
-    req = _approval_queue.get(request_id)
-    if req is None:
-        raise HTTPException(status_code=404, detail="Request not found")
-
-    actions: Optional[List[RecommendedAction]] = None
-    if body.approved_actions is not None:
-        try:
-            actions = [RecommendedAction(a) for a in body.approved_actions]
-        except Exception:
-            raise HTTPException(status_code=422, detail="Invalid approved_actions")
-
-    updated = _approval_queue.approve(request_id, body.operator, actions, body.notes)
-    _audit.log_hitl_decision(updated)
-
-    # Execute approved actions using the latest assessment we have for this shipment.
-    sim = next((s for s in SIMS.values() if s.shipment_id == updated.shipment_id), None)
-    assessment = sim._last_assessment if sim else None
-    if assessment is not None and updated.approved_actions:
-        results = _orchestrator.act.execute(assessment, updated.approved_actions)
-        sim._last_actions = [r.to_dict() for r in results] if sim else []
-        for r in results:
-            _audit.log_action_result(r)
-
-    # Clear pending id from the sim cache if this was the active pending.
-    if sim and sim._last_hitl_request_id == request_id:
-        sim._last_hitl_request_id = None
-    return updated.to_dict()
-
-
-@app.post("/api/hitl/{request_id}/reject")
-def reject_hitl(request_id: str, body: RejectRequestBody) -> dict:
-    req = _approval_queue.get(request_id)
-    if req is None:
-        raise HTTPException(status_code=404, detail="Request not found")
-    updated = _approval_queue.reject(request_id, body.operator, body.notes)
-    _audit.log_hitl_decision(updated)
-    sim = next((s for s in SIMS.values() if s.shipment_id == updated.shipment_id), None)
-    if sim and sim._last_hitl_request_id == request_id:
-        sim._last_hitl_request_id = None
-    return updated.to_dict()
-
-
