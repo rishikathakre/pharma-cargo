@@ -6,10 +6,15 @@ let destMarker = null;
 let previewLine = null;
 let originWeatherCircle = null;
 let destWeatherCircle = null;
+let rerouteLine = null;          // orange line: current position → rerouted destination
+let originalRouteLine = null;    // faded dashed blue: original planned route
+let rerouteDestMarker = null;    // orange ring marker at rerouted destination
+let rerouteBanner = null;        // DOM element for the reroute notification banner
 let pollTimer = null;
 let activeSimId = null;
 let sidebarTimer = null;
 let followActive = false;
+let _lastReroutedState = false;  // track reroute state to avoid redrawing every tick
 const MAX_WEATHER_RADIUS_KM = 45;
 
 const statusEl = document.getElementById("status");
@@ -172,7 +177,16 @@ async function loadOptions() {
   setStatus(`Loaded ${opts.routes_count} routes (airports indexed: ${originOptionsAll.length}). Use search to filter.`);
 }
 
+function clearRerouteLayers() {
+  if (rerouteLine)       { map.removeLayer(rerouteLine);       rerouteLine = null; }
+  if (originalRouteLine) { map.removeLayer(originalRouteLine); originalRouteLine = null; }
+  if (rerouteDestMarker) { map.removeLayer(rerouteDestMarker); rerouteDestMarker = null; }
+  if (rerouteBanner)     { rerouteBanner.remove(); rerouteBanner = null; }
+  _lastReroutedState = false;
+}
+
 function clearRoute() {
+  clearRerouteLayers();
   if (routeLine) {
     map.removeLayer(routeLine);
     routeLine = null;
@@ -326,6 +340,8 @@ async function startSim() {
   const durationSeconds = Number(document.getElementById("durationSeconds").value || "45");
   const speedMultiplier = Number(document.getElementById("speedMultiplier").value || "60");
 
+  const productId = document.getElementById("productSelect")?.value || null;
+
   const payload = {
     origin,
     destination,
@@ -335,6 +351,7 @@ async function startSim() {
     destination_lon: parseNum("destLon"),
     duration_seconds: durationSeconds,
     speed_multiplier: speedMultiplier,
+    product_id: productId || undefined,
     origin_weather: document.getElementById("originWeather")?.value || "RANDOM",
     destination_weather: document.getElementById("destWeather")?.value || "RANDOM",
   };
@@ -569,6 +586,86 @@ async function startSim() {
     }
   };
 
+  function applyRerouteVisuals(state) {
+    // Only draw reroute layers once when reroute first becomes true.
+    if (_lastReroutedState) return;
+    _lastReroutedState = true;
+
+    const plan = state.reroute_plan || {};
+    const chosenPath = plan.chosen_path || "REROUTE";
+    const destName   = state.reroute_destination_name || plan.cold_storage_facility || "Emergency Hub";
+    const gemini     = plan.gemini_decision ? " (AI-selected)" : "";
+    const rationale  = (plan.rationale || "").slice(0, 200);
+    const urgency    = plan.urgency || "HIGH";
+
+    // 1. Fade the original route to dashed grey
+    if (routeLine) {
+      routeLine.setStyle({ color: "#475569", weight: 2, opacity: 0.45, dashArray: "6 10" });
+    }
+
+    // 2. Draw original route polyline if available (in case routeLine was already removed)
+    if (Array.isArray(state.original_route_points) && state.original_route_points.length && !originalRouteLine) {
+      originalRouteLine = L.polyline(state.original_route_points, {
+        color: "#475569", weight: 2, opacity: 0.4, dashArray: "6 10",
+      }).addTo(map);
+      originalRouteLine.bindTooltip(`Original route → ${state.original_destination_name || "original destination"}`, { sticky: true });
+    }
+
+    // 3. Draw the rerouted route in orange along route_points (which backend has already updated)
+    if (Array.isArray(state.route_points) && state.route_points.length) {
+      if (rerouteLine) { map.removeLayer(rerouteLine); }
+      rerouteLine = L.polyline(state.route_points, {
+        color: "#f97316", weight: 5, opacity: 0.95,
+      }).addTo(map);
+      rerouteLine.bindTooltip(`AI Reroute${gemini} → ${destName}`, { sticky: true });
+    }
+
+    // 4. Reroute destination marker (orange pulsing ring)
+    const newDestLat = state.route_points && state.route_points.length
+      ? state.route_points[state.route_points.length - 1][0] : null;
+    const newDestLon = state.route_points && state.route_points.length
+      ? state.route_points[state.route_points.length - 1][1] : null;
+
+    if (newDestLat !== null) {
+      if (rerouteDestMarker) { map.removeLayer(rerouteDestMarker); }
+      rerouteDestMarker = L.circleMarker([newDestLat, newDestLon], {
+        radius: 14, color: "#f97316", fillColor: "#fed7aa", fillOpacity: 0.55, weight: 3,
+      }).addTo(map);
+      rerouteDestMarker.bindTooltip(
+        `<b>REROUTED DESTINATION</b><br>${destName}<br>ETA: ${plan.eta_hours != null ? plan.eta_hours.toFixed(1) + "h" : "—"}`,
+        { permanent: false, direction: "top" }
+      );
+    }
+
+    // 5. Reroute banner notification
+    if (!rerouteBanner) {
+      rerouteBanner = document.createElement("div");
+      rerouteBanner.style.cssText = [
+        "position:fixed", "bottom:18px", "left:50%", "transform:translateX(-50%)",
+        "background:linear-gradient(135deg,#ea580c,#f97316)", "color:#fff",
+        "padding:14px 20px", "border-radius:14px", "max-width:520px", "width:90%",
+        "box-shadow:0 8px 32px rgba(234,88,12,0.45)", "z-index:9999",
+        "font-size:13px", "line-height:1.5", "font-family:ui-sans-serif,system-ui,sans-serif",
+        "border:1px solid rgba(255,255,255,0.2)", "cursor:pointer",
+      ].join(";");
+      rerouteBanner.innerHTML =
+        `<div style="font-weight:700;font-size:15px;margin-bottom:6px">` +
+        `🔀 AI REROUTE APPROVED${gemini} — ${urgency} URGENCY</div>` +
+        `<div style="margin-bottom:4px"><b>New destination:</b> ${destName}</div>` +
+        (rationale ? `<div style="opacity:0.9;font-size:12px;margin-bottom:6px">"${rationale}${rationale.length >= 200 ? "…" : ""}"</div>` : "") +
+        `<div style="font-size:11px;opacity:0.75">Click to dismiss</div>`;
+      rerouteBanner.addEventListener("click", () => { rerouteBanner.remove(); rerouteBanner = null; });
+      document.body.appendChild(rerouteBanner);
+      // Auto-dismiss after 30 s
+      setTimeout(() => { if (rerouteBanner) { rerouteBanner.remove(); rerouteBanner = null; } }, 30000);
+    }
+
+    // 6. Fit map to show both original destination and rerouted destination
+    if (rerouteLine) {
+      try { map.fitBounds(rerouteLine.getBounds(), { padding: [60, 60] }); } catch {}
+    }
+  }
+
   pollTimer = setInterval(async () => {
     if (!activeSimId) return;
     try {
@@ -581,11 +678,22 @@ async function startSim() {
       }
       if (activeHintEl) {
         const top = state.anomalies && state.anomalies.length ? state.anomalies[0] : "—";
-        activeHintEl.textContent = `${state.shipment_id} • ${state.phase} • ${state.risk_level || "—"} (${state.risk_score ?? "—"}) • ${String(top).replace(/_/g, " ")}`;
+        const rerouteTag = state.rerouted ? " 🔀REROUTED" : "";
+        activeHintEl.textContent = `${state.shipment_id} • ${state.phase} • ${state.risk_level || "—"} (${state.risk_score ?? "—"}) • ${String(top).replace(/_/g, " ")}${rerouteTag}`;
       }
 
       const color = riskColor(state.risk_level);
       shipmentMarker.setStyle({ color, fillColor: color });
+
+      // Apply reroute visuals when reroute first detected
+      if (state.rerouted) {
+        applyRerouteVisuals(state);
+        // Keep rerouted route line up to date if marker moves ahead
+        if (rerouteLine && Array.isArray(state.route_points) && state.route_points.length) {
+          rerouteLine.setLatLngs(state.route_points);
+        }
+      }
+
       // Update weather zone visuals as weather changes over time
       if (originWeatherCircle && state.weather_origin) {
         originWeatherCircle.setStyle({
@@ -613,9 +721,15 @@ async function startSim() {
         setStatus(`⏳ Waiting at origin — ${reason}`);
       } else if (state.phase === "HOLDING") {
         setStatus(`Holding near destination (weather: ${state.weather_destination?.label || "unknown"})`);
+      } else if (state.rerouted) {
+        const destName = state.reroute_destination_name || "emergency hub";
+        setStatus(`🔀 REROUTED → ${destName} (${state.phase})`);
       }
       if (state.phase === "ARRIVED") {
-        setStatus(`Arrived: ${state.shipment_id} (${state.distance_km} km)`);
+        const label = state.rerouted
+          ? `Arrived at rerouted hub: ${state.reroute_destination_name || state.destination}`
+          : `Arrived: ${state.shipment_id} (${state.distance_km} km)`;
+        setStatus(label);
         stopPolling();
       }
     } catch (e) {

@@ -152,10 +152,16 @@ class CascadeOrchestrator:
             assessment = self.risk.assess(record, anomalies)
             # Inject route metadata from raw payload so action handlers can use it
             assessment.metadata.update({
-                "carrier":     record.raw.get("carrier", "Unknown"),
-                "origin":      record.raw.get("origin",  "Unknown"),
-                "destination": record.raw.get("destination", "Unknown"),
-                "product_id":  record.raw.get("product_id"),
+                "carrier":          record.raw.get("carrier", "Unknown"),
+                "origin":           record.raw.get("origin",  "Unknown"),
+                "destination":      record.raw.get("destination", "Unknown"),
+                "product_id":       record.raw.get("product_id"),
+                "battery_pct":      record.battery_pct,
+                "phase":            record.raw.get("phase", ""),
+                "weather_severity": record.raw.get("weather_severity", 0.0),
+                "latitude":         record.raw.get("latitude"),
+                "longitude":        record.raw.get("longitude"),
+                "delay_hours":      record.delay_hours,
             })
             state["assessment"] = assessment
             # Auto-approve MONITOR_ONLY for no-anomaly LOW risk — bypasses HITL gate
@@ -336,6 +342,7 @@ class CascadeOrchestrator:
           1. Run 3-path planner → choose best viable path
           2. Always fire hospital reroute alert (mandatory per GDP §9.3)
           3. Update inventory forecast to reflect new ETA
+          4. Push plan to HITL dashboard store for operator visibility
         """
         plan = self.reroute.plan_reroute(assessment)
 
@@ -357,6 +364,24 @@ class CascadeOrchestrator:
             spoilage_prob = assessment.spoilage_prob,
             product_ids   = ["VACCINE-COLD-CHAIN"],
         )
+
+        # Push full reroute plan to dashboard so operators can see Gemini's recommendation
+        try:
+            from hitl.dashboard import push_reroute_result
+            push_reroute_result(assessment.shipment_id, {
+                **plan.to_dict(),
+                "assessed_at":    assessment.assessed_at.isoformat(),
+                "risk_score":     round(assessment.risk_score, 4),
+                "risk_level":     assessment.risk_level.value,
+                "spoilage_prob":  round(float(assessment.spoilage_prob or 0.0), 4),
+                "product_id":     assessment.metadata.get("product_id", ""),
+                "destination":    assessment.metadata.get("destination", ""),
+                "battery_pct":    assessment.metadata.get("battery_pct"),
+                "phase":          assessment.metadata.get("phase", ""),
+                "delay_hours":    assessment.metadata.get("delay_hours", 0.0),
+            })
+        except Exception:
+            pass  # Dashboard not running — don't break the pipeline
 
         return {
             "reroute_plan":   plan.to_dict(),

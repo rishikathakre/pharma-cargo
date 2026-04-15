@@ -43,6 +43,16 @@ _queue: Optional[ApprovalQueue] = None
 _orchestrator = None
 _sim_lock = threading.Lock()
 
+# Reroute plan results pushed here by the orchestrator after execution
+_reroute_results: dict = {}          # shipment_id → reroute plan dict
+_reroute_lock = threading.Lock()
+
+
+def push_reroute_result(shipment_id: str, plan_dict: dict) -> None:
+    """Called by the orchestrator after a reroute plan is executed."""
+    with _reroute_lock:
+        _reroute_results[shipment_id] = plan_dict
+
 
 def set_queue(queue: ApprovalQueue) -> None:
     global _queue
@@ -332,6 +342,69 @@ input[type=text]:focus, select:focus {
 .atable tbody tr:last-child td { border-bottom: none; }
 .mono { font-family: 'Menlo', 'Consolas', monospace; }
 
+/* ── REROUTE INTEL CARD ── */
+.rcard {
+  border-radius: 16px; margin-bottom: 18px;
+  background: #fff; overflow: hidden;
+  box-shadow: 0 2px 16px rgba(124,58,237,0.1);
+  border: 1.5px solid #e0e7ff;
+  animation: fadein 0.4s ease;
+}
+.rcard:last-child { margin-bottom: 0; }
+.rcard-head {
+  padding: 14px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #4338ca 100%);
+}
+.rcard-sid  { font-size: 15px; font-weight: 800; color: #fff; }
+.viable-yes { background: #bbf7d0; color: #14532d; padding: 3px 12px; border-radius: 99px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.viable-no  { background: #fecaca; color: #7f1d1d; padding: 3px 12px; border-radius: 99px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.rcard-body { padding: 18px 20px; }
+.rcard-airport {
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(to right, #f0f9ff, #eff6ff);
+  border: 1.5px solid #bae6fd; border-radius: 12px;
+  padding: 14px 18px; margin-bottom: 16px;
+}
+.airport-iata { font-size: 36px; font-weight: 900; color: #1d4ed8; letter-spacing: -1px; font-family: 'Menlo','Consolas',monospace; }
+.airport-info { flex: 1; }
+.airport-name { font-size: 15px; font-weight: 700; color: #1e1b4b; }
+.airport-city { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.airport-dist { font-size: 12px; color: #7c3aed; font-weight: 600; margin-top: 4px; }
+.cold-chain-FULL    { display:inline-block; background:#d1fae5; color:#065f46; padding:2px 9px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase; margin-top:4px; }
+.cold-chain-PARTIAL { display:inline-block; background:#fef3c7; color:#92400e; padding:2px 9px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase; margin-top:4px; }
+.rmetrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 12px; margin-bottom: 16px; }
+.rm-negative .mval { color: #dc2626; }
+.rm-positive .mval { color: #059669; }
+.rrationale {
+  background: linear-gradient(to right, #f0f4ff, #faf5ff);
+  border-left: 4px solid #6366f1; border-radius: 0 12px 12px 0;
+  padding: 13px 16px; font-size: 14px; color: #374151; line-height: 1.7;
+  margin-bottom: 12px;
+}
+.rreg {
+  background: #fafafa; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 10px 14px; font-size: 12px; color: #6b7280; line-height: 1.6;
+}
+
+/* ── CONTEXT BANNER (in HITL card) ── */
+.ctx-banner {
+  background: linear-gradient(to right, #eff6ff, #f5f3ff);
+  border: 1.5px solid #c7d2fe; border-radius: 10px;
+  padding: 12px 16px; margin-bottom: 16px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 8px;
+}
+.ctx-item { }
+.ctx-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #818cf8; margin-bottom: 3px; }
+.ctx-val   { font-size: 13px; font-weight: 700; color: #1e1b4b; }
+.ctx-val.warn { color: #dc2626; }
+.ctx-val.ok   { color: #059669; }
+.anomaly-pills { display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 14px; }
+.anomaly-pill  { font-size:11px; font-weight:700; padding:3px 10px; border-radius:99px; white-space:nowrap; }
+.sev-CRITICAL { background:#fee2e2; color:#991b1b; }
+.sev-HIGH     { background:#ffedd5; color:#9a3412; }
+.sev-MEDIUM   { background:#fef9c3; color:#854d0e; }
+.sev-LOW      { background:#dcfce7; color:#166534; }
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f5f3ff; border-radius: 3px; }
@@ -444,6 +517,20 @@ input[type=text]:focus, select:focus {
 
   <div class="panel">
     <div class="panel-head">
+      <div class="panel-accent" style="background:linear-gradient(to bottom,#6366f1,#1d4ed8)"></div>
+      <div>
+        <div class="panel-title">Reroute Intelligence</div>
+        <div class="panel-sub">Gemini AI divert recommendations &amp; viability analysis</div>
+      </div>
+      <span class="panel-badge" style="background:#e0e7ff;color:#3730a3" id="badge-reroute">0</span>
+    </div>
+    <div class="panel-body">
+      <div id="reroute-wrap"><div class="empty">No reroute decisions yet. Reroute plans appear here after a REROUTE_SHIPMENT action is approved and executed.</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
       <div class="panel-accent pa-sky"></div>
       <div>
         <div class="panel-title">Audit Log</div>
@@ -512,6 +599,33 @@ function fmtDate(iso){if(!iso)return'&#8212;';const d=new Date(iso);return d.toL
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='show '+(type||'success');setTimeout(()=>{el.className='';},3200);}
 
+function buildContextBanner(req){
+  const m=req.metadata||{};
+  const hasReroute=(req.proposed_actions||[]).includes('REROUTE_SHIPMENT');
+  if(!hasReroute && !Object.keys(m).length) return '';
+  const batt=m.battery_pct!=null?m.battery_pct:null;
+  const battClass=batt!=null?(batt<20?'warn':batt<50?'':'ok'):'';
+  const battLabel=batt!=null?batt+'%':'—';
+  const delay=m.delay_hours!=null?m.delay_hours.toFixed(1)+'h':'—';
+  const wx=m.weather_severity!=null?(m.weather_severity*10).toFixed(1)+'/10':'—';
+  const spoil=m.spoilage_prob!=null?(m.spoilage_prob*100).toFixed(1)+'%':'—';
+  const anomalyPills=(m.anomalies||[]).map(a=>
+    '<span class="anomaly-pill sev-'+a.severity+'">'+a.type.replace(/_/g,' ')+'</span>'
+  ).join('');
+  let ctx='<div class="ctx-banner">'+
+    (m.destination?'<div class="ctx-item"><div class="ctx-label">Destination</div><div class="ctx-val">'+esc(m.destination)+'</div></div>':'') +
+    (m.product_id?'<div class="ctx-item"><div class="ctx-label">Product</div><div class="ctx-val">'+esc(m.product_id)+'</div></div>':'') +
+    (m.phase?'<div class="ctx-item"><div class="ctx-label">Phase</div><div class="ctx-val">'+esc(m.phase)+'</div></div>':'') +
+    (batt!=null?'<div class="ctx-item"><div class="ctx-label">Battery</div><div class="ctx-val '+battClass+'">'+battLabel+'</div></div>':'') +
+    '<div class="ctx-item"><div class="ctx-label">Delay</div><div class="ctx-val '+(m.delay_hours>2?'warn':'')+'">'+delay+'</div></div>'+
+    '<div class="ctx-item"><div class="ctx-label">Weather</div><div class="ctx-val '+(m.weather_severity>0.6?'warn':'')+'">'+wx+'</div></div>'+
+    '<div class="ctx-item"><div class="ctx-label">Spoilage Risk</div><div class="ctx-val '+(m.spoilage_prob>0.3?'warn':'ok')+'">'+spoil+'</div></div>'+
+    (m.carrier?'<div class="ctx-item"><div class="ctx-label">Carrier</div><div class="ctx-val">'+esc(m.carrier)+'</div></div>':'') +
+  '</div>';
+  if(anomalyPills) ctx+='<div class="anomaly-pills">'+anomalyPills+'</div>';
+  return ctx;
+}
+
 function buildCard(req){
   const rl=req.risk_level||'LOW', s=RISK_S[rl]||RISK_S.LOW;
   const cnt=(req.proposed_actions||[]).length;
@@ -527,6 +641,7 @@ function buildCard(req){
       '<span class="chip">'+cnt+' action'+(cnt!==1?'s':'')+'</span>'+
     '</div>'+
     '<div class="acard-body">'+
+      buildContextBanner(req)+
       '<div class="meta-grid">'+
         '<div><div class="mlabel">Request ID</div><div class="mval mono" style="font-size:11px">'+req.request_id+'</div></div>'+
         '<div><div class="mlabel">Risk Level</div><div>'+rBadge(rl)+'</div></div>'+
@@ -544,6 +659,61 @@ function buildCard(req){
       '</div>'+
     '</div>'+
   '</div>';
+}
+
+function buildReroute(plans){
+  if(!plans.length) return '<div class="empty">No reroute decisions yet. Reroute plans appear here after a REROUTE_SHIPMENT action is approved and executed.</div>';
+  return plans.map(p=>{
+    const viable=p.viable;
+    const viableBadge=viable
+      ?'<span class="viable-yes">&#10003; Viable</span>'
+      :'<span class="viable-no">&#10007; Not Viable &#8212; cold chain likely broken</span>';
+    const iata=p.divert_airport_iata||'—';
+    const aname=p.divert_airport_name||'Unknown Airport';
+    const acity=p.divert_airport_city||'';
+    const adist=p.divert_distance_km?p.divert_distance_km.toFixed(0)+' km away':'';
+    const coldChain=p.divert_airport_iata?'<span class="cold-chain-FULL">Full Cold-Chain</span>':'';
+    const eta=p.eta_hours!=null?p.eta_hours.toFixed(1)+'h':'—';
+    const tts=p.time_to_spoilage_hours!=null?p.time_to_spoilage_hours.toFixed(1)+'h':'—';
+    const margin=p.margin_hours!=null?p.margin_hours.toFixed(1)+'h':'—';
+    const marginNeg=p.margin_hours!=null&&p.margin_hours<0;
+    const batt=p.battery_pct!=null?p.battery_pct+'%':'—';
+    const delay=p.delay_hours!=null?p.delay_hours.toFixed(1)+'h':'—';
+    return '<div class="rcard">'+
+      '<div class="rcard-head">'+
+        '<span class="rcard-sid">&#9992; '+esc(p.shipment_id||'Unknown')+'</span>'+
+        (p.risk_level?rBadge(p.risk_level):'')+
+        viableBadge+
+        '<span style="color:#c7d2fe;font-size:12px;margin-left:auto">'+fmtTime(p.assessed_at)+'</span>'+
+      '</div>'+
+      '<div class="rcard-body">'+
+        (iata!=='—'?
+        '<div class="rcard-airport">'+
+          '<div class="airport-iata">'+esc(iata)+'</div>'+
+          '<div class="airport-info">'+
+            '<div class="airport-name">'+esc(aname)+'</div>'+
+            '<div class="airport-city">'+esc(acity)+'</div>'+
+            (adist?'<div class="airport-dist">'+adist+'</div>':'')+
+            coldChain+
+          '</div>'+
+          '<div style="text-align:right">'+
+            '<div class="mlabel">Recommended Divert</div>'+
+            '<div style="font-size:12px;color:#6b7280;margin-top:4px">Path: '+esc(p.chosen_path||'—')+'</div>'+
+          '</div>'+
+        '</div>':'')+
+        '<div class="rmetrics">'+
+          '<div><div class="mlabel">ETA to Divert</div><div class="mval">'+eta+'</div></div>'+
+          '<div><div class="mlabel">Time to Spoilage</div><div class="mval '+(p.time_to_spoilage_hours!=null&&p.time_to_spoilage_hours<1?'rm-negative':'')+'">'+tts+'</div></div>'+
+          '<div class="'+(marginNeg?'rm-negative':'rm-positive')+'"><div class="mlabel">Margin</div><div class="mval">'+margin+'</div></div>'+
+          '<div><div class="mlabel">Spoilage Risk</div><div class="mval '+(p.spoilage_prob>0.5?'rm-negative':'')+'">'+(p.spoilage_prob!=null?(p.spoilage_prob*100).toFixed(1)+'%':'—')+'</div></div>'+
+          '<div><div class="mlabel">Battery</div><div class="mval '+(p.battery_pct!=null&&p.battery_pct<30?'rm-negative':'')+'">'+batt+'</div></div>'+
+          '<div><div class="mlabel">Delay Accumulated</div><div class="mval">'+delay+'</div></div>'+
+        '</div>'+
+        (p.rationale?'<div class="rrationale"><strong style="color:#4338ca">Gemini Analysis:</strong> '+esc(p.rationale)+'</div>':'')+
+        (p.regulatory_note?'<div class="rreg"><strong>Regulatory:</strong> '+esc(p.regulatory_note)+'</div>':'')+
+      '</div>'+
+    '</div>';
+  }).join('');
 }
 
 function buildPendingTable(reqs){
@@ -661,6 +831,15 @@ async function refresh(){
     document.getElementById('resolved-wrap').innerHTML=buildResolved(res);
     document.getElementById('last-refresh').textContent=new Date().toLocaleTimeString();
   }catch(e){console.warn('Refresh error:',e.message);}
+
+  // Fetch and render reroute intelligence panel
+  try{
+    const rp=await(await fetch('/reroute')).json();
+    const sorted=rp.sort((a,b)=>(b.assessed_at||'').localeCompare(a.assessed_at||''));
+    document.getElementById('badge-reroute').textContent=sorted.length;
+    document.getElementById('reroute-wrap').innerHTML=buildReroute(sorted);
+  }catch(e){console.warn('Reroute fetch error:',e.message);}
+
   await fetchAudit();
 }
 
@@ -742,6 +921,13 @@ def get_audit_log(
                 except json.JSONDecodeError:
                     continue
     return list(reversed(records[-n:]))
+
+
+@app.get("/reroute", response_model=List[dict], tags=["Reroute"])
+def list_reroute_results():
+    """Return all reroute plan results stored since last restart."""
+    with _reroute_lock:
+        return list(_reroute_results.values())
 
 
 @app.get("/health", tags=["System"])

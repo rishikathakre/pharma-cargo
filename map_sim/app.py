@@ -95,6 +95,29 @@ def _load_airports(path: Path) -> tuple[Dict[str, Tuple[float, float]], List[str
 AIRPORT_COORDS, AIRPORT_NAMES = _load_airports(US_AIRPORTS_CSV)
 
 # ---------------------------------------------------------------------------
+# Cold-storage facility coordinates (keyed by IATA code).
+# Mirrors the keys in reroute_engine._COLD_STORAGE_FACILITIES.
+# Used to animate the flight path change after a reroute is approved.
+# ---------------------------------------------------------------------------
+COLD_STORAGE_COORDS: Dict[str, Tuple[float, float]] = {
+    "JFK": (40.6413, -73.7781),
+    "LAX": (33.9425, -118.4081),
+    "ORD": (41.9742, -87.9073),
+    "MIA": (25.7959, -80.2870),
+    "BOS": (42.3656, -71.0096),
+    "FRA": (50.0379,   8.5622),
+    "AMS": (52.3086,   4.7639),
+    "CDG": (49.0097,   2.5479),
+    "LHR": (51.4700,  -0.4543),
+    "ZRH": (47.4647,   8.5492),
+    "SIN": ( 1.3644, 103.9915),
+    "HKG": (22.3080, 113.9185),
+    "PVG": (31.1443, 121.8083),
+    "BOM": (19.0896,  72.8656),
+    "NRT": (35.7647, 140.3864),
+}
+
+# ---------------------------------------------------------------------------
 # Dummy weather zones (demo-only)
 # ---------------------------------------------------------------------------
 
@@ -485,6 +508,8 @@ class CreateSimRequest(BaseModel):
     # How long the full trip should take on screen (seconds).
     duration_seconds: float = 45.0
     shipment_id: Optional[str] = None
+    # Product being shipped — must match a product_id in product_catalogue.json.
+    product_id: Optional[str] = None
     # Weather is dummy/demo-only; seed lets you make a run repeatable.
     weather_seed: Optional[int] = None
     origin_weather: Optional[str] = None   # e.g. "CALM" | "STORM" | "RANDOM"
@@ -521,6 +546,7 @@ class Simulation:
     duration_seconds: float
     speed_multiplier: float
     weather_seed: int
+    product_id: str = "VACC-STANDARD"
     origin_weather_override: Optional[str] = None
     destination_weather_override: Optional[str] = None
     route_points: List[Tuple[float, float]] = field(default_factory=list)
@@ -542,6 +568,14 @@ class Simulation:
     # 0 = normal, 100 = emergency/critical.
     priority: int = 0
     priority_reason: str = ""
+
+    # reroute state — set by apply_reroute() when HITL approves REROUTE_SHIPMENT
+    rerouted: bool = False
+    reroute_destination_name: str = ""
+    reroute_plan: Optional[Dict[str, Any]] = None
+    original_route_points: List[Tuple[float, float]] = field(default_factory=list)
+    original_destination_name: str = ""
+    original_destination: Optional[Tuple[float, float]] = None
 
     # pipeline (background thread) state
     _last_risk_state: Optional[PipelineState] = None
@@ -672,6 +706,76 @@ class Simulation:
         # ARRIVED
         return self.destination
 
+    def apply_reroute(self, plan_dict: Dict[str, Any]) -> bool:
+        """
+        Redirect this simulation to a new destination based on an approved reroute plan.
+
+        For COLD_STORAGE plans: the flight curves toward the cold-storage hub (IATA-keyed).
+        For LAST_MILE_COURIER / ORIGINAL_ROUTE: no visual path change (no coords available).
+
+        Returns True if the visual reroute was applied, False if skipped.
+        """
+        chosen_path = plan_dict.get("chosen_path", "")
+        if chosen_path == "ORIGINAL_ROUTE":
+            self.rerouted = True
+            self.reroute_plan = plan_dict
+            return False
+
+        iata = plan_dict.get("cold_storage_iata", "")
+        new_coords: Optional[Tuple[float, float]] = None
+        new_name = ""
+
+        if chosen_path == "COLD_STORAGE" and iata and iata in COLD_STORAGE_COORDS:
+            new_coords = COLD_STORAGE_COORDS[iata]
+            new_name   = plan_dict.get("cold_storage_facility") or f"{iata} Cold-Storage Hub"
+        elif chosen_path == "LAST_MILE_COURIER":
+            # No specific hub coords: mark rerouted but keep original destination on map.
+            self.rerouted      = True
+            self.reroute_plan  = plan_dict
+            self.reroute_destination_name = plan_dict.get("recommended_carrier", "Emergency Courier")
+            return False
+
+        if new_coords is None:
+            return False
+
+        now = time.monotonic()
+        current_pos = self.current_position(now)
+
+        # Save original route for faded display on the frontend
+        self.original_route_points   = list(self.route_points)
+        self.original_destination_name = self.destination_name
+        self.original_destination    = self.destination
+
+        # Build new route from current position to cold-storage hub
+        new_route_pts = _route_points(current_pos, new_coords, segments=48)
+
+        # Redirect the sim: update destination + route + reset progress clock
+        self.destination      = new_coords
+        self.destination_name = new_name
+        self.route_points     = new_route_pts
+
+        # ETA from the reroute plan → simulated flight seconds for the new leg.
+        # Real on-screen time = eta_hours * 3600 / speed_multiplier.
+        eta_hours = float(plan_dict.get("eta_hours", 2.0))
+        self.duration_seconds        = eta_hours * 3600.0
+        self.enroute_start_monotonic = now   # reset progress to 0
+
+        # Ensure we're in ENROUTE (not HOLDING) so the new path plays out
+        if self.phase in ("HOLDING", "ARRIVED"):
+            self.phase = "ENROUTE"
+            self.holding_start_monotonic = None
+
+        self.rerouted               = True
+        self.reroute_destination_name = new_name
+        self.reroute_plan           = plan_dict
+
+        import logging as _log
+        _log.getLogger(__name__).info(
+            "[%s] Reroute applied: %s → %s (iata=%s  eta=%.1fh)",
+            self.shipment_id, self.original_destination_name, new_name, iata, eta_hours,
+        )
+        return True
+
     def to_public(self) -> dict:
         now = time.monotonic()
         w_origin, w_dest = self.current_weather(now)
@@ -711,6 +815,19 @@ class Simulation:
         out["anomalies"] = [a.anomaly_type.value for a in (self._last_anomalies or [])]
         out["hitl_pending"] = self._last_hitl_request_id
         out["action_results"] = self._last_actions
+
+        # Reroute visual state
+        out["rerouted"] = self.rerouted
+        if self.rerouted:
+            out["reroute_destination_name"] = self.reroute_destination_name
+            out["reroute_plan"]             = self.reroute_plan
+            out["original_route_points"]    = [
+                [round(p[0], 6), round(p[1], 6)] for p in (self.original_route_points or [])
+            ]
+            out["original_destination_name"] = self.original_destination_name
+            if self.original_destination:
+                out["original_destination_lat"] = round(self.original_destination[0], 6)
+                out["original_destination_lon"] = round(self.original_destination[1], 6)
         return out
 
     def generate_telemetry(self) -> dict:
@@ -757,6 +874,24 @@ class Simulation:
         flight_status = "ON_TIME"
         customs_status = "CLEARED"
 
+        # --- Battery drain model ---
+        # Battery powers the container's active cooling unit.
+        # Drains linearly over the journey; extra drain during HOLDING (heavier
+        # cooling load while circling) and a small jitter for realism.
+        elapsed_sec = max(0.0, now_mono - self.created_at_monotonic)
+        journey_fraction = elapsed_sec / max(1.0, float(self.duration_seconds))
+        # Normal drain: 100% → ~65% over the full journey.
+        battery_base = 100.0 - journey_fraction * 35.0
+        # Extra drain if we have been in a holding pattern.
+        holding_elapsed_sec = 0.0
+        if self.holding_start_monotonic is not None:
+            holding_elapsed_sec = max(0.0, now_mono - self.holding_start_monotonic)
+        holding_fraction = holding_elapsed_sec / max(1.0, float(self.duration_seconds))
+        # Holding draws an additional 30% worth of battery over the same journey window.
+        battery_base -= holding_fraction * 30.0
+        # Small deterministic jitter (±2%).
+        battery_pct = round(max(0.0, min(100.0, battery_base + rng.uniform(-2.0, 2.0))), 1)
+
         if phase == "WAIT_TAKEOFF":
             temperature_c = rng.uniform(4.0, 6.0)
             humidity_pct = rng.uniform(40.0, 55.0)
@@ -780,7 +915,7 @@ class Simulation:
         elif phase == "HOLDING":
             customs_status = "HOLD"
             flight_status = "DELAYED"
-            holding_elapsed_h = max(0.0, (now_mono - (self.holding_start_monotonic or now_mono)) / 3600.0)
+            holding_elapsed_h = holding_elapsed_sec / 3600.0
             delay_hours = max(1.0, holding_elapsed_h + severity * 3.0)
             temperature_c = min(18.0, temp_target + holding_elapsed_h * 4.0 + rng.uniform(-0.3, 0.3))
             humidity_pct = rng.uniform(30.0, 50.0)
@@ -800,6 +935,7 @@ class Simulation:
             "temperature_c": round(float(temperature_c), 2),
             "humidity_pct": round(float(humidity_pct), 1),
             "shock_g": round(float(shock_g), 3),
+            "battery_pct": battery_pct,
             "latitude": round(float(lat), 6),
             "longitude": round(float(lon), 6),
             "altitude_m": round(float(altitude_m), 1),
@@ -812,8 +948,8 @@ class Simulation:
             # so the reroute engine knows origin/destination for cold-storage lookup.
             "origin":      self.origin_name,
             "destination": self.destination_name,
-            "carrier":     "pharma-air-sim",   # sim-level placeholder carrier
-            "product_id":  "VACC-STANDARD",    # default; can be extended per-sim
+            "carrier":     "pharma-air-sim",
+            "product_id":  self.product_id,
         }
 
 
@@ -995,6 +1131,7 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
     w_origin = _weather_for_override(seed, b, "origin", req.origin_weather)
     w_dest = _weather_for_override(seed, b, "destination", req.destination_weather)
 
+    from data.product_catalogue import get_default_product_id
     sim = Simulation(
         sim_id=sim_id,
         shipment_id=shipment_id,
@@ -1006,6 +1143,7 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
         duration_seconds=float(req.duration_seconds),
         speed_multiplier=float(req.speed_multiplier),
         weather_seed=seed,
+        product_id=req.product_id or get_default_product_id(),
         origin_weather_override=req.origin_weather,
         destination_weather_override=req.destination_weather,
         route_points=_route_points(origin, destination, segments=72),
@@ -1160,7 +1298,6 @@ def get_sim(sim_id: str) -> dict:
     sim = SIMS.get(sim_id)
     if not sim:
         raise HTTPException(status_code=404, detail="Simulation not found")
-    _tick_pipeline(sim)
     return sim.to_public()
 
 
@@ -1174,7 +1311,6 @@ def list_sims() -> List[dict]:
             if (now - s.arrived_at_monotonic) >= SIM_AUTO_PRUNE_ARRIVED_AFTER_SEC:
                 to_delete.append(sid)
                 continue
-        _tick_pipeline(s)
         out.append(s.to_public())
     for sid in to_delete:
         SIMS.pop(sid, None)
@@ -1247,9 +1383,19 @@ def approve_hitl(request_id: str, body: ApproveRequestBody) -> dict:
     assessment = sim._last_assessment if sim else None
     if assessment is not None and updated.approved_actions:
         results = _orchestrator.act.execute(assessment, updated.approved_actions)
-        sim._last_actions = [r.to_dict() for r in results] if sim else []
+        if sim:
+            sim._last_actions = [r.to_dict() for r in results]
         for r in results:
             _audit.log_action_result(r)
+            # If the action is REROUTE_SHIPMENT and succeeded, redirect the flight on the map.
+            if (
+                sim is not None
+                and r.success
+                and r.action.value == "REROUTE_SHIPMENT"
+                and isinstance(r.payload, dict)
+            ):
+                plan_dict = r.payload.get("reroute_plan") or r.payload
+                sim.apply_reroute(plan_dict)
 
     if sim and sim._last_hitl_request_id == request_id:
         sim._last_hitl_request_id = None

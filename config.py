@@ -34,11 +34,16 @@ EXCURSION_MINUTES = 30     # minutes before sustained excursion triggers escalat
 # Risk scoring weights
 # ---------------------------------------------------------------------------
 RISK_WEIGHTS: Dict[str, float] = {
-    "temperature": 0.40,
-    "humidity":    0.20,
-    "shock":       0.15,
-    "delay_hours": 0.15,
+    # Temperature is suppressed when cargo is in-aircraft (phase-aware in risk_agent).
+    # When on ground (ARRIVED) or battery is dying mid-flight it gets full weight.
+    "temperature": 0.30,
+    "humidity":    0.15,
+    "shock":       0.10,
+    # Delays accumulate excursion time regardless of phase — primary in-flight driver.
+    "delay_hours": 0.25,
     "customs":     0.10,
+    # Battery powers container active cooling; low battery = cooling failure risk.
+    "battery":     0.10,
 }
 RISK_HIGH_THRESHOLD   = 0.70   # score above which HITL approval is required
 RISK_MEDIUM_THRESHOLD = 0.40
