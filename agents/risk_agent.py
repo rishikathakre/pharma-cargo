@@ -122,13 +122,35 @@ class RiskAgent:
         temp_min = profile.temp_min_c if profile else TEMP_MIN_C
         temp_max = profile.temp_max_c if profile else TEMP_MAX_C
 
+        # Phase-aware temperature weight.
+        # Aircraft holds are actively temperature-controlled: WAIT_TAKEOFF,
+        # ENROUTE, and HOLDING are all inside the aircraft.  A sensor reading
+        # outside the product's range during those phases does NOT imply spoilage
+        # unless the container's own battery-powered cooling has failed.
+        # ARRIVED = cargo is on the ground being offloaded → full exposure.
+        phase = (record.raw or {}).get("phase", "")
+        in_aircraft = phase in ("WAIT_TAKEOFF", "ENROUTE", "HOLDING")
+
+        # Battery drives the container's active cooling unit.
+        # Below 60 % it starts to matter; at 0 % the cooling unit is dead.
+        battery_pct = max(0.0, min(100.0, record.battery_pct))
+        battery_failure_factor = max(0.0, (60.0 - battery_pct) / 60.0)  # 0→1 as battery 60→0%
+
+        if in_aircraft:
+            # Normally no temperature risk inside aircraft; rises proportionally
+            # only if the container's own cooling is failing (battery dying).
+            temp_weight = battery_failure_factor
+        else:
+            # ARRIVED: cargo is on the ground — full temperature exposure.
+            temp_weight = 1.0
+
         # Temperature component (0-1)
         if record.temperature_c > temp_max:
             excess = (record.temperature_c - temp_max) / 10.0
-            components["temperature"] = min(excess + 0.5, 1.0)
+            components["temperature"] = min(excess + 0.5, 1.0) * temp_weight
         elif record.temperature_c < temp_min:
             excess = (temp_min - record.temperature_c) / 10.0
-            components["temperature"] = min(excess + 0.5, 1.0)
+            components["temperature"] = min(excess + 0.5, 1.0) * temp_weight
         else:
             components["temperature"] = 0.0
 
@@ -146,11 +168,17 @@ class RiskAgent:
         else:
             components["shock"] = 0.0
 
-        # Delay component (normalised over 24h)
-        components["delay_hours"] = min(record.delay_hours / 24.0, 1.0)
+        # Delay component.
+        # Normalised over 6h — a 3h holding delay should score ~0.5, not 0.03.
+        # Delays accumulate cold-chain excursion time regardless of phase.
+        components["delay_hours"] = min(record.delay_hours / 6.0, 1.0)
 
         # Customs component
         components["customs"] = 1.0 if record.customs_status == "HOLD" else 0.0
+
+        # Battery component — powers the container's active cooling unit.
+        # Starts contributing at < 60 %, reaches maximum at 0 %.
+        components["battery"] = battery_failure_factor
 
         # Severity multiplier from anomalies
         severity_bonus = 0.0
@@ -159,6 +187,8 @@ class RiskAgent:
                 severity_bonus += 0.15
             elif a.severity == Severity.HIGH:
                 severity_bonus += 0.08
+            elif a.severity == Severity.MEDIUM:
+                severity_bonus += 0.04
 
         weighted = sum(
             self._weights.get(k, 0) * v for k, v in components.items()

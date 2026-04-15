@@ -2,17 +2,14 @@
 start.py
 --------
 One-command launcher for Pharma Cargo Monitor.
-Starts the HITL dashboard + map simulation + live simulation together,
-sharing a single in-memory ApprovalQueue so every agent
-decision surfaces directly in the browser.
+Starts the HITL dashboard + map simulation, sharing a single
+in-memory ApprovalQueue so agent decisions surface in both UIs.
 
 Usage:
-    python start.py                          # defaults: 3 shipments, 40 ticks, port 8080
-    python start.py --shipments 5 --ticks 60
+    python start.py                  # default ports: dashboard=8080, map=8090
     python start.py --port 3000
-    python start.py --map-port 8090          # map simulation port (default: 8090)
-    python start.py --no-browser             # skip auto-open
-    python start.py --interval 3             # 3 seconds between ticks (default: 2)
+    python start.py --map-port 8091
+    python start.py --no-browser     # skip auto-open
 """
 
 from __future__ import annotations
@@ -189,11 +186,8 @@ def main() -> None:
         description="Pharma Cargo Monitor — one-command launcher",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--shipments",  type=int,   default=3,    help="Concurrent shipments to simulate")
-    parser.add_argument("--ticks",      type=int,   default=40,   help="Telemetry ticks per shipment")
     parser.add_argument("--port",       type=int,   default=8080, help="HITL dashboard port")
     parser.add_argument("--map-port",   type=int,   default=8090, help="Map simulation port")
-    parser.add_argument("--interval",   type=float, default=2.0,  help="Seconds between telemetry ticks")
     parser.add_argument("--no-browser", action="store_true",      help="Skip auto-opening the browser")
     args = parser.parse_args()
 
@@ -250,8 +244,6 @@ def main() -> None:
     logger.info("=" * 60)
     logger.info("  [OK] HITL Dashboard  : %s", dash_url)
     logger.info("  [OK] Map Simulation  : %s", map_url)
-    logger.info("  [OK] Shipments : %d   Ticks : %d   Interval : %.1fs",
-                args.shipments, args.ticks, args.interval)
     logger.info("  [OK] Audit log : data/processed/audit.jsonl")
     logger.info("=" * 60)
 
@@ -261,18 +253,10 @@ def main() -> None:
         webbrowser.open(map_url)
         logger.info("Browser opened → %s  and  %s", dash_url, map_url)
 
-    # ── run simulation in main thread ─────────────────────────────────────────
-    try:
-        _run_simulation(shared_orchestrator, args.shipments, args.ticks, args.interval)
-    except KeyboardInterrupt:
-        logger.info("Simulation interrupted.")
-
-    # ── keep both services alive after simulation finishes ────────────────────
-    logger.info("")
-    logger.info("Simulation complete. Services still live:")
+    # ── keep both services alive ──────────────────────────────────────────────
+    logger.info("  Services are live. Press Ctrl+C to shut down.")
     logger.info("  HITL Dashboard : %s", dash_url)
     logger.info("  Map Simulation : %s", map_url)
-    logger.info("Press Ctrl+C to shut down.")
     try:
         while True:
             time.sleep(1)

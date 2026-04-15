@@ -43,6 +43,16 @@ _queue: Optional[ApprovalQueue] = None
 _orchestrator = None
 _sim_lock = threading.Lock()
 
+# Reroute plan results pushed here by the orchestrator after execution
+_reroute_results: dict = {}          # shipment_id → reroute plan dict
+_reroute_lock = threading.Lock()
+
+
+def push_reroute_result(shipment_id: str, plan_dict: dict) -> None:
+    """Called by the orchestrator after a reroute plan is executed."""
+    with _reroute_lock:
+        _reroute_results[shipment_id] = plan_dict
+
 
 def set_queue(queue: ApprovalQueue) -> None:
     global _queue
@@ -742,6 +752,13 @@ def get_audit_log(
                 except json.JSONDecodeError:
                     continue
     return list(reversed(records[-n:]))
+
+
+@app.get("/reroute", response_model=List[dict], tags=["Reroute"])
+def list_reroute_results():
+    """Return all reroute plan results stored since last restart."""
+    with _reroute_lock:
+        return list(_reroute_results.values())
 
 
 @app.get("/health", tags=["System"])

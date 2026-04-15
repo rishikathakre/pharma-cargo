@@ -24,11 +24,14 @@ Also provides:
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
+
+from config import GEMINI_API_KEY, LLM_MODEL, LLM_TEMPERATURE
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +106,115 @@ _AIRPORT_NAME_TO_IATA: Dict[str, str] = {
 # Emergency pharma courier baseline ETA (hours from pickup to cold-chain handoff)
 _EMERGENCY_COURIER_ETA_HOURS = 4.0
 
+# ---------------------------------------------------------------------------
+# Known US pharma hub airports with FULL IATA CEIV Pharma / GDP certification.
+# All other US large airports default to PARTIAL (refrigerated handling only).
+# Congestion tiers based on FAA traffic volume rankings.
+# ---------------------------------------------------------------------------
+_US_PHARMA_FULL: set = {
+    "JFK", "EWR",  # New York metro — largest US pharma air hub
+    "LAX",          # Los Angeles IATA CEIV Pharma certified
+    "ORD",          # Chicago O'Hare AmerisourceBergen hub
+    "MIA",          # Miami Marken / World Courier GDP+
+    "BOS",          # Boston Cardinal Health
+    "IAD",          # Washington Dulles pharma corridor
+    "DFW",          # Dallas IATA CEIV Pharma
+    "SFO",          # San Francisco bio/pharma cluster
+    "PHL",          # Philadelphia pharma valley proximity
+    "IAH",          # Houston — Life Sciences hub
+    "SLC",          # Salt Lake City — cold-chain distribution hub
+}
+
+_US_CONGESTION: Dict[str, str] = {
+    # HIGH — consistently slot-constrained
+    "ATL": "HIGH", "ORD": "HIGH", "LAX": "HIGH", "DFW": "HIGH",
+    "JFK": "HIGH", "SFO": "HIGH", "EWR": "HIGH", "LGA": "HIGH",
+    "DEN": "HIGH", "CLT": "HIGH", "PHX": "HIGH",
+    # MEDIUM
+    "BOS": "MEDIUM", "IAD": "MEDIUM", "MIA": "MEDIUM", "PHL": "MEDIUM",
+    "IAH": "MEDIUM", "MCO": "MEDIUM", "MSP": "MEDIUM", "DTW": "MEDIUM",
+    "SEA": "MEDIUM", "MDW": "MEDIUM", "FLL": "MEDIUM", "BWI": "MEDIUM",
+    "TPA": "MEDIUM", "PDX": "MEDIUM", "SAN": "MEDIUM", "SLC": "MEDIUM",
+    "HNL": "MEDIUM", "SNA": "MEDIUM", "STL": "MEDIUM", "CVG": "MEDIUM",
+    # LOW — everything else
+}
+
+
+def _load_us_airport_db() -> Dict[str, Dict]:
+    """
+    Load US large airports from data/raw/us-airports.csv.
+    Returns a dict keyed by IATA code with name, city, lat, lon,
+    cold_chain tier, and congestion level.
+    Falls back to an empty dict if the file is missing.
+    """
+    import csv as _csv
+    from pathlib import Path as _Path
+
+    csv_path = _Path(__file__).resolve().parents[1] / "data" / "raw" / "us-airports.csv"
+    if not csv_path.exists():
+        logger.warning("us-airports.csv not found — airport divert lookup unavailable")
+        return {}
+
+    db: Dict[str, Dict] = {}
+    with open(csv_path, encoding="utf-8-sig") as f:
+        for row in _csv.DictReader(f):
+            iata = (row.get("iata_code") or "").strip()
+            if not iata or row.get("type", "") != "large_airport":
+                continue
+            try:
+                lat = float(row["latitude_deg"])
+                lon = float(row["longitude_deg"])
+            except (ValueError, KeyError):
+                continue
+            cold_chain = "FULL" if iata in _US_PHARMA_FULL else "PARTIAL"
+            congestion = _US_CONGESTION.get(iata, "LOW")
+            db[iata] = {
+                "name":       row.get("name", iata),
+                "city":       row.get("municipality", ""),
+                "lat":        lat,
+                "lon":        lon,
+                "cold_chain": cold_chain,
+                "congestion": congestion,
+            }
+
+    logger.info("Loaded %d US large airports for divert lookup", len(db))
+    return db
+
+
+# Module-level load — done once at import time.
+_AIRPORT_DB: Dict[str, Dict] = _load_us_airport_db()
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Return the great-circle distance in km between two lat/lon points."""
+    R = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _airports_near(lat: float, lon: float, radius_km: float = 800, max_results: int = 6) -> List[Dict]:
+    """
+    Return up to max_results airports within radius_km sorted by distance.
+    Each result dict has: iata, name, city, distance_km, cold_chain, congestion.
+    """
+    results = []
+    for iata, info in _AIRPORT_DB.items():
+        dist = _haversine_km(lat, lon, info["lat"], info["lon"])
+        if dist <= radius_km:
+            results.append({
+                "iata":        iata,
+                "name":        info["name"],
+                "city":        info["city"],
+                "distance_km": round(dist, 0),
+                "cold_chain":  info["cold_chain"],
+                "congestion":  info["congestion"],
+            })
+    results.sort(key=lambda x: x["distance_km"])
+    return results[:max_results]
+
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -117,6 +229,7 @@ class PathEvaluation:
     margin_hours:       float       # time_to_spoilage - eta (positive = safe buffer)
     carrier:            Optional[str] = None
     facility:           Optional[str] = None
+    iata:               Optional[str] = None   # IATA code of the cold-storage hub (COLD_STORAGE only)
     notes:              str = ""
 
 
@@ -145,6 +258,13 @@ class ReroutePlan:
         "(Qualification of Suppliers) before transfer of custody. "
         "Cold-storage diversion logged per GDP §9.2."
     )
+    gemini_decision:        bool = False   # True when Gemini selected the path
+    cold_storage_iata:      Optional[str] = None  # IATA code of chosen cold-storage hub
+    # Gemini-recommended divert airport (populated when Gemini selects COLD_STORAGE)
+    divert_airport_iata:    Optional[str] = None
+    divert_airport_name:    Optional[str] = None
+    divert_airport_city:    Optional[str] = None
+    divert_distance_km:     Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -158,10 +278,16 @@ class ReroutePlan:
             "viable":                  self.viable,
             "recommended_carrier":     self.recommended_carrier,
             "cold_storage_facility":   self.cold_storage_facility,
+            "cold_storage_iata":       self.cold_storage_iata,
+            "divert_airport_iata":     self.divert_airport_iata,
+            "divert_airport_name":     self.divert_airport_name,
+            "divert_airport_city":     self.divert_airport_city,
+            "divert_distance_km":      self.divert_distance_km,
             "urgency":                 self.urgency,
             "rationale":               self.rationale,
             "hospital_eta_note":       self.hospital_eta_note,
             "regulatory_note":         self.regulatory_note,
+            "gemini_decision":         self.gemini_decision,
             "paths_evaluated": [
                 {
                     "path":         p.path,
@@ -219,23 +345,56 @@ class RerouteEngine:
         viable_paths.sort(key=lambda p: p.eta_hours)
 
         if viable_paths:
-            best = viable_paths[0]
+            math_best = viable_paths[0]
         else:
             # Nothing viable — fallback to least-bad option
             all_paths = sorted([path_a, path_b, path_c], key=lambda p: p.eta_hours)
-            best = all_paths[0]
+            math_best = all_paths[0]
 
-        chosen_carrier = best.carrier
+        # Map path labels → PathEvaluation objects for LLM override resolution
+        path_map = {
+            "COLD_STORAGE":      path_a,
+            "LAST_MILE_COURIER": path_b,
+            "ORIGINAL_ROUTE":    path_c,
+        }
+
+        # --- Gemini decision point ---
+        # Ask the LLM to select the best path with expert regulatory reasoning.
+        # The math above narrows the field; Gemini makes (and explains) the call.
+        # Falls back to math_best silently if no API key or network failure.
+        llm_result     = self._llm_select_path(assessment, path_a, path_b, path_c, tts, delay_hours)
+        gemini_decided = False
+
+        divert_airport: Optional[Dict] = None
+
+        if llm_result and len(llm_result) == 4:
+            llm_path, llm_rationale, llm_reg_note, divert_airport = llm_result
+            llm_eval = path_map.get(llm_path)
+            if llm_eval is not None:
+                if llm_path != math_best.path:
+                    logger.info(
+                        "[%s] Gemini overrides math selection: %s → %s",
+                        assessment.shipment_id, math_best.path, llm_path,
+                    )
+                best           = llm_eval
+                rationale      = llm_rationale
+                regulatory_note= llm_reg_note
+                gemini_decided = True
+            else:
+                best      = math_best
+                rationale = self._build_plan_rationale(assessment, tts, delay_hours, math_best, viable_paths)
+                regulatory_note = None
+        else:
+            best      = math_best
+            rationale = self._build_plan_rationale(assessment, tts, delay_hours, math_best, viable_paths)
+            regulatory_note = None
+
+        chosen_carrier  = best.carrier
         chosen_facility = best.facility
-        urgency = self._urgency(assessment.risk_score)
-        rationale = self._build_plan_rationale(
-            assessment, tts, delay_hours, best, viable_paths
-        )
-        hospital_note = self._build_hospital_eta_note(
-            assessment, best, tts, destination
-        )
+        urgency         = self._urgency(assessment.risk_score)
+        hospital_note   = self._build_hospital_eta_note(assessment, best, tts, destination)
 
-        plan = ReroutePlan(
+        plan_kwargs: Dict[str, Any] = dict(
             shipment_id            = assessment.shipment_id,
             generated_at           = datetime.now(timezone.utc).isoformat(),
             chosen_path            = best.path,
@@ -246,10 +405,20 @@ class RerouteEngine:
             paths_evaluated        = [path_a, path_b, path_c],
             recommended_carrier    = chosen_carrier,
             cold_storage_facility  = chosen_facility,
+            cold_storage_iata      = best.iata if best.path == "COLD_STORAGE" else None,
+            divert_airport_iata    = divert_airport.get("iata") if divert_airport else None,
+            divert_airport_name    = divert_airport.get("name") if divert_airport else None,
+            divert_airport_city    = divert_airport.get("city") if divert_airport else None,
+            divert_distance_km     = divert_airport.get("distance_km") if divert_airport else None,
             urgency                = urgency,
             rationale              = rationale,
             hospital_eta_note      = hospital_note,
+            gemini_decision        = gemini_decided,
         )
+        if regulatory_note:
+            plan_kwargs["regulatory_note"] = regulatory_note
+
+        plan = ReroutePlan(**plan_kwargs)
 
         logger.info(
             "[%s] Reroute plan: path=%s  ETA=%.1fh  TtS=%.1fh  margin=%.1fh  viable=%s",
@@ -319,7 +488,7 @@ class RerouteEngine:
         PATH A: Divert to nearest GDP-compliant cold-storage facility.
         ETA = time to get cargo off current transport + into cold chain.
         """
-        facility_name, eta = self._nearest_facility(destination)
+        facility_name, eta, iata = self._nearest_facility(destination)
         margin = tts - eta
         return PathEvaluation(
             path     = "COLD_STORAGE",
@@ -327,6 +496,7 @@ class RerouteEngine:
             viable   = eta < tts,
             margin_hours = margin,
             facility = facility_name,
+            iata     = iata or None,
             notes    = (
                 f"Divert to {facility_name}. "
                 f"Est. {eta:.1f}h to cold chain. "
@@ -444,9 +614,9 @@ class RerouteEngine:
                     delay = max(delay, float(a.measured_value))
         return delay
 
-    def _nearest_facility(self, destination: str) -> Tuple[str, float]:
+    def _nearest_facility(self, destination: str) -> Tuple[str, float, str]:
         """
-        Return (facility_name, divert_hours) for the cold-storage hub
+        Return (facility_name, divert_hours, iata_code) for the cold-storage hub
         closest to the destination airport/city.
 
         Resolution order:
@@ -454,32 +624,35 @@ class RerouteEngine:
           2. Full-name → IATA map     (e.g. "Heathrow Airport" → LHR)
           3. Substring match on IATA  (e.g. "JFK" anywhere in dest string)
           4. Substring match on facility name
-          5. Default fallback
+          5. Default fallback (iata_code = "")
         """
         dest_upper = destination.upper()
         dest_lower = destination.lower()
 
         # 1. Direct IATA
         if dest_upper in _COLD_STORAGE_FACILITIES:
-            return _COLD_STORAGE_FACILITIES[dest_upper]
+            fname, hours = _COLD_STORAGE_FACILITIES[dest_upper]
+            return fname, hours, dest_upper
 
         # 2. Full airport-name → IATA (handles map_sim names like "Heathrow Airport")
         for name_key, iata in _AIRPORT_NAME_TO_IATA.items():
             if name_key in dest_lower:
                 if iata in _COLD_STORAGE_FACILITIES:
-                    return _COLD_STORAGE_FACILITIES[iata]
+                    fname, hours = _COLD_STORAGE_FACILITIES[iata]
+                    return fname, hours, iata
 
         # 3. IATA code anywhere in destination string
-        for code, facility in _COLD_STORAGE_FACILITIES.items():
+        for code, (fname, hours) in _COLD_STORAGE_FACILITIES.items():
             if code in dest_upper:
-                return facility
+                return fname, hours, code
 
         # 4. Facility name substring match
         for code, (fname, hours) in _COLD_STORAGE_FACILITIES.items():
             if dest_upper in fname.upper():
-                return fname, hours
+                return fname, hours, code
 
-        return _DEFAULT_FACILITY
+        fname, hours = _DEFAULT_FACILITY
+        return fname, hours, ""
 
     def _rank_alternatives(self, current_carrier: str) -> List[Dict[str, Any]]:
         """Return up to 3 alternative carriers ranked by reliability."""
@@ -508,6 +681,222 @@ class RerouteEngine:
         if risk_score >= 0.70: return "HIGH"
         if risk_score >= 0.40: return "MEDIUM"
         return "LOW"
+
+    def _llm_select_path(
+        self,
+        assessment: Any,
+        path_a: PathEvaluation,
+        path_b: PathEvaluation,
+        path_c: PathEvaluation,
+        tts: float,
+        delay_hours: float,
+    ) -> Optional[Tuple[str, str, str, Optional[Dict]]]:
+        """
+        Ask Gemini to select the best reroute path AND recommend a specific
+        divert airport when applicable.
+
+        Gemini receives:
+          - Full shipment context (product, risk, spoilage window, battery level)
+          - Live weather severity at the destination
+          - A list of real nearby airports with their cold-chain capability,
+            current congestion level, and distance from the destination
+          - The three evaluated paths with ETAs and viability margins
+
+        Gemini returns ONE chosen path, ONE specific divert airport (IATA code),
+        and a clear human-readable rationale for the human operator to approve/reject.
+
+        Returns (chosen_path, rationale, regulatory_note, divert_airport_dict) or None.
+        """
+        if not GEMINI_API_KEY:
+            return None
+
+        try:
+            from google import genai
+            from google.genai import types
+
+            metadata     = getattr(assessment, "metadata", {})
+            carrier      = metadata.get("carrier", "Unknown")
+            destination  = metadata.get("destination", "Unknown")
+            battery_pct  = metadata.get("battery_pct", 100.0)
+            phase        = metadata.get("phase", "UNKNOWN")
+            weather_sev  = float(metadata.get("weather_severity", 0.0))
+            dest_lat     = metadata.get("latitude")
+            dest_lon     = metadata.get("longitude")
+
+            # Find nearby airports around the current position
+            nearby: List[Dict] = []
+            if dest_lat is not None and dest_lon is not None:
+                nearby = _airports_near(float(dest_lat), float(dest_lon),
+                                        radius_km=800, max_results=6)
+
+            # Build the nearby airports block for the prompt
+            if nearby:
+                nearby_lines = "\n".join(
+                    f"  {i+1}. {a['iata']} — {a['name']}, {a['city']} "
+                    f"({a['distance_km']:.0f} km away | "
+                    f"cold-chain: {a['cold_chain']} | "
+                    f"congestion: {a['congestion']})"
+                    for i, a in enumerate(nearby)
+                )
+            else:
+                nearby_lines = "  (position unavailable — use domain knowledge for nearest hub)"
+
+            # Map congestion to weather estimate near destination
+            weather_desc = (
+                "SEVERE STORM — airport closed / holding mandatory"
+                if weather_sev >= 0.8 else
+                "HEAVY WEATHER — delays likely, ILS approaches only"
+                if weather_sev >= 0.6 else
+                "MODERATE WEATHER — reduced capacity"
+                if weather_sev >= 0.4 else
+                "LIGHT WEATHER / CLEAR"
+            )
+
+            battery_status = (
+                "CRITICAL (<10%) — cooling unit may fail imminently"
+                if battery_pct < 10 else
+                f"LOW ({battery_pct:.0f}%) — cold-chain integrity at risk"
+                if battery_pct < 20 else
+                f"REDUCED ({battery_pct:.0f}%) — monitor closely"
+                if battery_pct < 40 else
+                f"OK ({battery_pct:.0f}%)"
+            )
+
+            anomaly_lines = "\n".join(
+                f"  - [{a.severity.value}] {a.anomaly_type.value}: {a.description}"
+                for a in getattr(assessment, "anomalies", [])
+            ) or "  - None"
+
+            nearby_iata_list = [a["iata"] for a in nearby]
+
+            prompt = f"""You are the AI co-pilot for a pharmaceutical cold-chain emergency response system.
+A cargo shipment is in crisis. You must recommend the SINGLE BEST course of action to a human operator
+who will approve or reject your decision on the HITL dashboard.
+
+━━━ SHIPMENT STATUS ━━━
+Shipment ID      : {assessment.shipment_id}
+Product          : {metadata.get("product_id", "VACC-STANDARD")}
+Current Phase    : {phase}  (cargo is {"inside the aircraft" if phase in ("ENROUTE","HOLDING","WAIT_TAKEOFF") else "on the ground"})
+Risk Level       : {assessment.risk_level.value}  (score {assessment.risk_score:.2f}/1.00)
+Spoilage Prob    : {assessment.spoilage_prob:.0%}
+Time to Spoilage : {tts:.1f} hours remaining before product becomes unviable
+Current Delay    : {delay_hours:.1f} hours
+Current Carrier  : {carrier}
+Intended Dest    : {destination}
+
+━━━ CRITICAL CONDITIONS ━━━
+Battery Status   : {battery_status}
+  → Battery powers the container's active cooling unit.
+  → If battery dies mid-flight, cold chain collapses regardless of aircraft environment.
+Destination Wx   : {weather_desc}  (severity index {weather_sev:.2f}/1.00)
+
+Active Anomalies :
+{anomaly_lines}
+
+━━━ NEARBY AIRPORTS (within 800 km of current position) ━━━
+{nearby_lines}
+
+Note on congestion: HIGH congestion airports have longer ground handling times (+1-2h).
+Note on cold-chain: FULL = IATA CEIV Pharma certified; PARTIAL = refrigerated handling only.
+When destination is STORM/closed, aircraft CANNOT land — it must divert.
+
+━━━ THREE OPTIONS EVALUATED ━━━
+PATH A — COLD_STORAGE (divert to nearest pharma-certified airport)
+  ETA      : {path_a.eta_hours:.1f}h  |  Viable: {path_a.viable}  |  Margin: {path_a.margin_hours:+.1f}h
+  Details  : {path_a.notes}
+
+PATH B — LAST_MILE_COURIER (transfer cargo to emergency pharma courier at nearest safe airport)
+  ETA      : {path_b.eta_hours:.1f}h  |  Viable: {path_b.viable}  |  Margin: {path_b.margin_hours:+.1f}h
+  Carrier  : {path_b.carrier or "N/A"}
+  Details  : {path_b.notes}
+
+PATH C — ORIGINAL_ROUTE (continue to intended destination, absorb delay)
+  ETA      : {path_c.eta_hours:.1f}h  |  Viable: {path_c.viable}  |  Margin: {path_c.margin_hours:+.1f}h
+  Details  : {path_c.notes}
+
+━━━ YOUR TASK ━━━
+1. Select the BEST path weighing: battery time remaining, weather at each nearby airport,
+   cold-chain capability, congestion, and product spoilage window.
+2. If choosing COLD_STORAGE or LAST_MILE_COURIER, pick the SPECIFIC best divert airport
+   from the nearby list (or use your knowledge if the list is empty).
+3. Write 3-4 sentences of expert reasoning that a human logistics director can read,
+   understand, and approve in under 30 seconds. Be specific: cite the battery %, spoilage
+   window, weather severity, and why THIS airport beats the alternatives.
+4. Cite the GDP/FDA regulation that mandates this action.
+
+Respond ONLY with valid JSON — no markdown, no extra text:
+{{
+  "chosen_path": "COLD_STORAGE",
+  "divert_airport_iata": "SIN",
+  "rationale": "3-4 sentences citing battery %, time-to-spoilage, weather severity, and why this specific airport was chosen over alternatives.",
+  "regulatory_note": "The specific GDP/FDA/ICH Q10 regulation requiring this action."
+}}
+
+Rules:
+- chosen_path MUST be exactly one of: COLD_STORAGE, LAST_MILE_COURIER, ORIGINAL_ROUTE
+- divert_airport_iata: use an IATA code from the nearby list if available, or best known hub; set to null if ORIGINAL_ROUTE
+- If no path is viable, choose the least-bad one and note quarantine must follow"""
+
+            client   = genai.Client(api_key=GEMINI_API_KEY)
+            response = client.models.generate_content(
+                model   = LLM_MODEL,
+                contents= prompt,
+                config  = types.GenerateContentConfig(
+                    temperature      = 0.2,   # low temp for consistent operational decisions
+                    max_output_tokens= 600,
+                ),
+            )
+
+            raw = response.text.strip()
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+            raw = raw.strip()
+
+            data      = json.loads(raw)
+            chosen    = data.get("chosen_path", "").strip().upper()
+            rationale = data.get("rationale", "").strip()
+            reg_note  = data.get("regulatory_note", "").strip()
+            div_iata  = (data.get("divert_airport_iata") or "").strip().upper() or None
+
+            valid_paths = {"COLD_STORAGE", "LAST_MILE_COURIER", "ORIGINAL_ROUTE"}
+            if chosen not in valid_paths:
+                logger.warning("[%s] Gemini invalid path '%s' — math fallback",
+                               assessment.shipment_id, chosen)
+                return None
+
+            # Resolve divert airport from our DB or nearby list
+            divert_info: Optional[Dict] = None
+            if div_iata:
+                if div_iata in _AIRPORT_DB:
+                    db_entry = _AIRPORT_DB[div_iata]
+                    # compute distance if we have position
+                    dist = None
+                    if dest_lat is not None and dest_lon is not None:
+                        dist = round(_haversine_km(float(dest_lat), float(dest_lon),
+                                                   db_entry["lat"], db_entry["lon"]), 0)
+                    divert_info = {
+                        "iata":        div_iata,
+                        "name":        db_entry["name"],
+                        "city":        db_entry["city"],
+                        "distance_km": dist,
+                    }
+                else:
+                    # Gemini used an IATA not in our DB — still pass it through
+                    divert_info = {"iata": div_iata, "name": div_iata, "city": "", "distance_km": None}
+
+            logger.info(
+                "[%s] Gemini reroute: path=%s  divert=%s  (math had: %s)",
+                assessment.shipment_id, chosen, div_iata or "N/A",
+                "see plan_reroute for math winner",
+            )
+            return chosen, rationale, reg_note, divert_info
+
+        except Exception as exc:
+            logger.warning("[%s] Gemini reroute failed (%s) — math fallback",
+                           assessment.shipment_id, exc)
+            return None
 
     def _build_plan_rationale(
         self,

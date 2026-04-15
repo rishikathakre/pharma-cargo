@@ -303,6 +303,74 @@
             </div>
           </div>
 
+          <div class="row" style="margin-bottom:10px">
+            <label for="productSelect">Cargo / Vaccine type</label>
+            <select id="productSelect" style="width:100%">
+              <optgroup label="Vaccines — Ultra-cold">
+                <option value="mRNA-COVID">mRNA COVID-19 (Pfizer-BioNTech) −90 to −60°C</option>
+                <option value="mRNA-COVID-MOD">mRNA COVID-19 (Moderna) −50 to −15°C</option>
+                <option value="mRNA-FLU-A">mRNA Influenza A −80 to −60°C</option>
+                <option value="mRNA-FLU-B">mRNA Influenza B −80 to −50°C</option>
+                <option value="mRNA-RSV">mRNA RSV −80 to −60°C</option>
+              </optgroup>
+              <optgroup label="Vaccines — Refrigerated (2–8°C)">
+                <option value="VACC-STANDARD" selected>Influenza / MMR (standard) 2–8°C</option>
+                <option value="VACC-MMR">MMR (Measles-Mumps-Rubella) 2–8°C</option>
+                <option value="VACC-IPV">Inactivated Polio (IPV) 2–8°C</option>
+                <option value="VACC-DTP">DTP Combination 2–8°C</option>
+                <option value="VACC-PENTA">Pentavalent (DTP-HepB-Hib) 2–8°C</option>
+                <option value="VACC-ROTA">Rotavirus (Rotarix) 2–8°C</option>
+                <option value="VACC-PCV13">Pneumococcal PCV13 2–8°C</option>
+                <option value="VACC-MEN-A">Meningococcal A (MenAfriVac) 2–8°C</option>
+                <option value="VACC-HPV">HPV (Gardasil-9) 2–8°C</option>
+                <option value="VACC-DENGUE">Dengue (Dengvaxia) 2–8°C</option>
+                <option value="VACC-CHOLERA">Oral Cholera (Shanchol) 2–8°C</option>
+                <option value="VACC-MALARIA">Malaria RTS,S (Mosquirix) 2–8°C</option>
+                <option value="VACC-COVID-AD">COVID-19 Adenoviral (Janssen) 2–8°C</option>
+                <option value="VACC-SHINGRIX">Shingles (Shingrix) 2–8°C</option>
+              </optgroup>
+              <optgroup label="Vaccines — Frozen">
+                <option value="VACC-OPV">Oral Polio (OPV) −20 to −10°C</option>
+                <option value="VACC-YF">Yellow Fever −25 to −10°C</option>
+                <option value="VACC-VARICELLA">Varicella −25 to −10°C</option>
+                <option value="VACC-BCG">BCG (Tuberculosis) −25 to −10°C</option>
+              </optgroup>
+              <optgroup label="Biologics / Monoclonal Antibodies">
+                <option value="BIO-SPECIALTY">Specialty Biologic (mAb) 2–8°C</option>
+                <option value="BIO-ADALIMUMAB">Adalimumab (Humira) 2–8°C</option>
+                <option value="BIO-TRASTUZUMAB">Trastuzumab (Herceptin) 2–8°C</option>
+                <option value="BIO-PEMBROLIZUMAB">Pembrolizumab (Keytruda) 2–8°C</option>
+                <option value="BIO-NIVOLUMAB">Nivolumab (Opdivo) 2–8°C</option>
+                <option value="BIO-RITUXIMAB">Rituximab (Rituxan) 2–8°C</option>
+              </optgroup>
+              <optgroup label="Cell / Gene Therapy — Cryogenic">
+                <option value="GENE-CAR-T">CAR-T (Kymriah) −196 to −150°C</option>
+                <option value="GENE-CAR-T2">CAR-T (Yescarta) −196 to −150°C</option>
+                <option value="GENE-ONASEMNO">Zolgensma (SMA) −90 to −60°C</option>
+              </optgroup>
+              <optgroup label="Blood Products">
+                <option value="PLASMA-IVIG">IVIG 2–8°C</option>
+                <option value="PLASMA-FROZEN">Fresh Frozen Plasma −30 to −18°C</option>
+                <option value="PLASMA-FACTOR8">Factor VIII 2–8°C</option>
+              </optgroup>
+              <optgroup label="Oncology / High-value">
+                <option value="ONCO-CARBOPLAT">Carboplatin 2–8°C</option>
+                <option value="ONCO-DOCETAXEL">Docetaxel 2–8°C</option>
+                <option value="NEURO-LECANEMAB">Lecanemab (Alzheimer's) 2–8°C</option>
+              </optgroup>
+              <optgroup label="Insulin / Endocrine">
+                <option value="INSULIN-RAPID">Insulin Aspart (NovoRapid) 2–8°C</option>
+                <option value="INSULIN-LONG">Insulin Glargine (Lantus) 2–8°C</option>
+              </optgroup>
+              <optgroup label="Antivirals / Antibiotics">
+                <option value="ANTIVIRAL-REMO">Remdesivir −25 to −15°C</option>
+                <option value="ANTIVIRAL-PAXLOV">Paxlovid 2–8°C</option>
+                <option value="ANTI-MEROPENEM">Meropenem 2–8°C</option>
+                <option value="ANTI-VANCOMYCIN">Vancomycin 2–8°C</option>
+              </optgroup>
+            </select>
+          </div>
+
           <div class="btnRow">
             <button id="startBtn">Start</button>
             <button id="stopBtn" class="secondary">Stop</button>

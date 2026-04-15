@@ -19,7 +19,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from agents.risk_agent import RecommendedAction, RiskAssessment, RiskLevel
 from config import HITL_APPROVAL_TIMEOUT_SEC
@@ -49,6 +49,7 @@ class ApprovalRequest:
     decided_by:        Optional[str] = None
     decided_at:        Optional[datetime] = None
     notes:             str = ""
+    metadata:          Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -64,6 +65,7 @@ class ApprovalRequest:
             "decided_by":       self.decided_by,
             "decided_at":       self.decided_at.isoformat() if self.decided_at else None,
             "notes":            self.notes,
+            "metadata":         self.metadata,
         }
 
 
@@ -89,6 +91,21 @@ class ApprovalQueue:
             proposed_actions = assessment.actions,
             justification    = assessment.justification,
             created_at       = datetime.now(timezone.utc),
+            metadata         = {
+                "battery_pct":      assessment.metadata.get("battery_pct"),
+                "phase":            assessment.metadata.get("phase", ""),
+                "delay_hours":      assessment.metadata.get("delay_hours", 0.0),
+                "weather_severity": assessment.metadata.get("weather_severity", 0.0),
+                "destination":      assessment.metadata.get("destination", ""),
+                "origin":           assessment.metadata.get("origin", ""),
+                "product_id":       assessment.metadata.get("product_id", ""),
+                "carrier":          assessment.metadata.get("carrier", ""),
+                "spoilage_prob":    round(float(assessment.spoilage_prob or 0.0), 4),
+                "anomalies":        [
+                    {"type": a.anomaly_type.value, "severity": a.severity.value}
+                    for a in (assessment.anomalies or [])
+                ],
+            },
         )
         event = threading.Event()
         with self._lock:

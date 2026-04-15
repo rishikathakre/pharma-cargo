@@ -92,6 +92,9 @@ class AnomalyAgent:
         temp_max = profile.temp_max_c if profile else TEMP_MAX_C
 
         # --- Temperature excursion ---
+        phase = (record.raw or {}).get("phase", "")
+        phase_note = " [in-flight — risk weight reduced]" if phase == "ENROUTE" else ""
+
         if record.temperature_c > temp_max:
             sev = Severity.CRITICAL if record.temperature_c > temp_max + 4 else Severity.HIGH
             anomalies.append(Anomaly(
@@ -101,7 +104,7 @@ class AnomalyAgent:
                 container_id   = record.container_id,
                 detected_at    = now,
                 description    = (f"Temperature {record.temperature_c:.1f}°C exceeds "
-                                  f"upper limit {temp_max}°C"),
+                                  f"upper limit {temp_max}°C{phase_note}"),
                 measured_value = record.temperature_c,
                 threshold      = temp_max,
             ))
@@ -115,7 +118,7 @@ class AnomalyAgent:
                 container_id   = record.container_id,
                 detected_at    = now,
                 description    = (f"Temperature {record.temperature_c:.1f}°C below "
-                                  f"lower limit {temp_min}°C"),
+                                  f"lower limit {temp_min}°C{phase_note}"),
                 measured_value = record.temperature_c,
                 threshold      = temp_min,
             ))
@@ -175,7 +178,7 @@ class AnomalyAgent:
 
         # --- Flight status ---
         if record.flight_status == "DELAYED":
-            sev = Severity.HIGH if record.delay_hours > 6 else Severity.MEDIUM
+            sev = Severity.HIGH if record.delay_hours > 2 else Severity.MEDIUM
             anomalies.append(Anomaly(
                 anomaly_type   = AnomalyType.FLIGHT_DELAY,
                 severity       = sev,
@@ -196,16 +199,37 @@ class AnomalyAgent:
                 description  = "Flight diverted — destination changed",
             ))
 
-        # --- Battery ---
-        if record.battery_pct < 15:
+        # --- Battery / cooling unit ---
+        # The battery powers the container's active cooling unit.
+        # Graduated severity so operators get early warning before cooling fails.
+        batt = record.battery_pct
+        if batt < 10:
+            batt_sev = Severity.CRITICAL
+            batt_msg = (f"Cooling unit battery CRITICAL at {batt:.0f}% — "
+                        f"active refrigeration may fail imminently")
+        elif batt < 20:
+            batt_sev = Severity.HIGH
+            batt_msg = (f"Cooling unit battery LOW at {batt:.0f}% — "
+                        f"cold-chain integrity at risk")
+        elif batt < 40:
+            batt_sev = Severity.MEDIUM
+            batt_msg = (f"Cooling unit battery at {batt:.0f}% — "
+                        f"monitor closely; recharge at next opportunity")
+        elif batt < 60:
+            batt_sev = Severity.LOW
+            batt_msg = f"Cooling unit battery at {batt:.0f}% — early advisory"
+        else:
+            batt_sev = None
+
+        if batt_sev is not None:
             anomalies.append(Anomaly(
                 anomaly_type   = AnomalyType.BATTERY_LOW,
-                severity       = Severity.LOW,
+                severity       = batt_sev,
                 shipment_id    = record.shipment_id,
                 container_id   = record.container_id,
                 detected_at    = now,
-                description    = f"Sensor battery at {record.battery_pct:.0f}%",
-                measured_value = record.battery_pct,
+                description    = batt_msg,
+                measured_value = batt,
             ))
 
         if anomalies:
