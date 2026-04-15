@@ -20,15 +20,11 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from config import INSURANCE_API_URL
+from data.product_catalogue import get_product_profile, get_default_product_id
 
 logger = logging.getLogger(__name__)
 
-# TODO: Replace with a product catalogue lookup (by product_id / NDC code).
-#   $25/dose and 5000 doses/container are rough order-of-magnitude placeholders.
-#   Real values differ significantly: mRNA COVID-19 ~$20–$30, MMR ~$50–$70,
-#   specialty biologics can exceed $500/dose.  Container capacity also varies
-#   by product, packaging format, and cold-chain configuration.
-VACCINE_VALUE_PER_DOSE_USD  = 25.0
+DEFAULT_VALUE_PER_DOSE_USD = 25.0
 DEFAULT_DOSES_PER_CONTAINER = 5000
 
 
@@ -76,11 +72,11 @@ class InsuranceDocGenerator:
     # ------------------------------------------------------------------
 
     def _build_claim(self, assessment: Any) -> Dict[str, Any]:
-        value_at_risk = (
-            assessment.spoilage_prob
-            * DEFAULT_DOSES_PER_CONTAINER
-            * VACCINE_VALUE_PER_DOSE_USD
-        )
+        product_id = getattr(assessment, "metadata", {}).get("product_id") or get_default_product_id()
+        profile = get_product_profile(product_id)
+        doses = profile.doses_per_container if profile and profile.doses_per_container else DEFAULT_DOSES_PER_CONTAINER
+        value_per = profile.value_per_dose_usd if profile and profile.value_per_dose_usd else DEFAULT_VALUE_PER_DOSE_USD
+        value_at_risk = assessment.spoilage_prob * doses * value_per
         return {
             "claim_id":         str(uuid.uuid4()),
             "document_type":    "PRELIMINARY_INSURANCE_CLAIM",
@@ -91,6 +87,10 @@ class InsuranceDocGenerator:
             "risk_level":       assessment.risk_level.value,
             "spoilage_probability": round(assessment.spoilage_prob, 4),
             "estimated_loss_usd": round(value_at_risk, 2),
+            "product_id": product_id,
+            "product_name": profile.name if profile else product_id,
+            "doses_per_container": doses,
+            "value_per_dose_usd": value_per,
             "anomalies": [
                 {
                     "type":        an.anomaly_type.value,

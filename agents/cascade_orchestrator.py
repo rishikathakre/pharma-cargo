@@ -155,6 +155,7 @@ class CascadeOrchestrator:
                 "carrier":     record.raw.get("carrier", "Unknown"),
                 "origin":      record.raw.get("origin",  "Unknown"),
                 "destination": record.raw.get("destination", "Unknown"),
+                "product_id":  record.raw.get("product_id"),
             })
             state["assessment"] = assessment
             # Auto-approve MONITOR_ONLY for no-anomaly LOW risk — bypasses HITL gate
@@ -370,6 +371,12 @@ class CascadeOrchestrator:
         quarantine = self.inv.quarantine(assessment)
         insurance  = self.ins.generate(assessment)
         hospital   = self.hosp.notify(assessment)
+        # Build chain-of-custody doc from immutable audit trail for the claim packet.
+        try:
+            history = self.audit.get_shipment_history(assessment.shipment_id)
+            chain = self.ins.generate_chain_of_custody(assessment.shipment_id, history)
+        except Exception as exc:
+            chain = {"status": "chain_of_custody_failed", "error": str(exc)}
         logger.warning(
             "[%s] EMERGENCY RECALL initiated — spoilage_prob=%.2f",
             assessment.shipment_id, assessment.spoilage_prob,
@@ -380,6 +387,7 @@ class CascadeOrchestrator:
             "quarantine":  quarantine,
             "insurance":   insurance,
             "hospital":    hospital,
+            "chain_of_custody": chain,
             "regulatory_note": (
                 "Emergency recall documented per GDP §8 – Self-Inspection "
                 "and FDA 21 CFR 7 – Enforcement Policy."

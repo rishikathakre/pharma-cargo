@@ -32,6 +32,13 @@ def run_simulation(n_shipments: int = 3, max_ticks: int = 20) -> None:
     from data.dataset_loader import loader as dataset_loader
     logger.info("\n%s", dataset_loader.calibration_summary())
 
+    # Start local mock integrations for a clean demo (no dry_run).
+    try:
+        from mock_services import start_mock_services
+        start_mock_services()
+    except Exception as exc:
+        logger.warning("Mock services not started: %s", exc)
+
     from agents.telemetry_agent   import TelemetryAgent
     from agents.anomaly_agent     import AnomalyAgent
     from agents.risk_agent        import RiskAgent
@@ -140,10 +147,14 @@ def run_dashboard(port: int = 8080) -> None:
         sys.exit(1)
 
     from hitl.approval_queue import ApprovalQueue
-    from hitl.dashboard import app, set_queue
+    from hitl.dashboard import app, set_queue, set_orchestrator
+    from agents.cascade_orchestrator import CascadeOrchestrator
 
     queue = ApprovalQueue()
     set_queue(queue)
+    # Orchestrator shares the same in-memory ApprovalQueue so the UI can
+    # show pending approvals from simulation runs started via the dashboard.
+    set_orchestrator(CascadeOrchestrator(approval_queue=queue))
 
     logger.info("Starting HITL dashboard on http://localhost:%d", port)
     logger.info("API docs: http://localhost:%d/docs", port)

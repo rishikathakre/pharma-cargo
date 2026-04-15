@@ -14,13 +14,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 from config import INVENTORY_API_URL
+from data.product_catalogue import get_product_profile, get_default_product_id
 
 logger = logging.getLogger(__name__)
 
-# TODO: Replace with product catalogue lookup (by product_id / NDC code).
-#   These are order-of-magnitude placeholders only — see insurance_docs.py for context.
-DOSES_PER_CONTAINER = 5_000   # placeholder — varies by product and packaging
-DOSE_VALUE_USD      = 25.0    # USD per dose — placeholder
+DEFAULT_DOSES_PER_CONTAINER = 5_000
+DEFAULT_DOSE_VALUE_USD = 25.0
 
 
 class InventoryUpdater:
@@ -29,8 +28,12 @@ class InventoryUpdater:
 
     def update_cold_storage(self, assessment: Any) -> Dict[str, Any]:
         """Request an emergency cold-storage slot near the container's location."""
-        doses_at_risk = round(assessment.spoilage_prob * DOSES_PER_CONTAINER)
-        value_at_risk = round(doses_at_risk * DOSE_VALUE_USD, 2)
+        product_id = getattr(assessment, "metadata", {}).get("product_id") or get_default_product_id()
+        profile = get_product_profile(product_id)
+        doses_total = profile.doses_per_container if profile and profile.doses_per_container else DEFAULT_DOSES_PER_CONTAINER
+        value_per = profile.value_per_dose_usd if profile and profile.value_per_dose_usd else DEFAULT_DOSE_VALUE_USD
+        doses_at_risk = round(assessment.spoilage_prob * doses_total)
+        value_at_risk = round(doses_at_risk * value_per, 2)
         payload = {
             "action":         "REQUEST_COLD_STORAGE",
             "shipment_id":    assessment.shipment_id,
@@ -41,6 +44,8 @@ class InventoryUpdater:
             "urgency":        "CRITICAL" if assessment.risk_score > 0.85 else "HIGH",
             "doses_at_risk":  doses_at_risk,
             "value_at_risk_usd": value_at_risk,
+            "product_id": product_id,
+            "value_per_dose_usd": value_per,
         }
         response = self._post(payload)
         logger.info("[%s] Cold-storage request sent → %s",
@@ -71,7 +76,12 @@ class InventoryUpdater:
         product_ids: list,
     ) -> Dict[str, Any]:
         """Adjust inventory forecasts for downstream clinics."""
-        doses_at_risk    = round(spoilage_prob * DOSES_PER_CONTAINER)
+        # If product_ids is provided, use the first as the forecasted product for sizing.
+        product_id = (product_ids[0] if product_ids else None) or get_default_product_id()
+        profile = get_product_profile(product_id)
+        doses_total = profile.doses_per_container if profile and profile.doses_per_container else DEFAULT_DOSES_PER_CONTAINER
+        value_per = profile.value_per_dose_usd if profile and profile.value_per_dose_usd else DEFAULT_DOSE_VALUE_USD
+        doses_at_risk    = round(spoilage_prob * doses_total)
         expected_arrival = "DELAYED" if delay_hours > 0 else "ON_SCHEDULE"
         if spoilage_prob >= 1.0:
             adjustment = "ZERO_OUT"
@@ -90,7 +100,9 @@ class InventoryUpdater:
             "adjustment":        adjustment,
             "expected_arrival":  expected_arrival,
             "doses_at_risk":     doses_at_risk,
-            "estimated_loss_usd": round(doses_at_risk * DOSE_VALUE_USD, 2),
+            "estimated_loss_usd": round(doses_at_risk * value_per, 2),
+            "product_id": product_id,
+            "value_per_dose_usd": value_per,
             "downstream_note": (
                 "Downstream clinics should update stock projections and "
                 "identify alternative supply sources if spoilage_prob > 0.5."
