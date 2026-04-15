@@ -41,6 +41,67 @@ class HospitalNotifier:
                     assessment.shipment_id, response.get("status"))
         return response
 
+    def notify_reroute(self, assessment: Any, reroute_plan: Any) -> Dict[str, Any]:
+        """
+        Send a reroute-specific alert using the ReroutePlan's pre-built message.
+        Always fires when REROUTE_SHIPMENT action is executed — mandatory per GDP §9.3.
+        """
+        destination = getattr(assessment, "metadata", {}).get("destination", "unknown")
+        vax_priority = self._get_vaccination_priority(destination)
+
+        # Use the ready-to-send note built by RerouteEngine
+        hospital_note = getattr(reroute_plan, "hospital_eta_note", None)
+        if not hospital_note:
+            hospital_note = (
+                f"REROUTE ALERT — Shipment {assessment.shipment_id} has been diverted. "
+                f"Chosen path: {getattr(reroute_plan, 'chosen_path', 'UNKNOWN')}. "
+                f"New ETA: {getattr(reroute_plan, 'eta_hours', '?'):.1f}h."
+            )
+
+        payload = {
+            "notification_type":    "REROUTE_ALERT",
+            "shipment_id":          assessment.shipment_id,
+            "container_id":         assessment.container_id,
+            "timestamp":            datetime.now(timezone.utc).isoformat(),
+            "risk_level":           assessment.risk_level.value,
+            "risk_score":           round(assessment.risk_score, 4),
+            "spoilage_probability": round(assessment.spoilage_prob, 4),
+            "chosen_path":          getattr(reroute_plan, "chosen_path", "UNKNOWN"),
+            "new_eta_hours":        getattr(reroute_plan, "eta_hours", None),
+            "time_to_spoilage_hours": getattr(reroute_plan, "time_to_spoilage_hours", None),
+            "margin_hours":         getattr(reroute_plan, "margin_hours", None),
+            "cold_storage_facility": getattr(reroute_plan, "cold_storage_facility", None),
+            "recommended_carrier":  getattr(reroute_plan, "recommended_carrier", None),
+            "urgency":              getattr(reroute_plan, "urgency", "HIGH"),
+            "message":              hospital_note,
+            "vaccination_priority": vax_priority,
+            "regulatory_note":      getattr(reroute_plan, "regulatory_note",
+                                            "Reroute logged per GDP §9.3 and 21 CFR 211.142."),
+        }
+
+        response = self._send(payload)
+        logger.info(
+            "[%s] Reroute alert sent → path=%s  ETA=%.1fh  status=%s",
+            assessment.shipment_id,
+            getattr(reroute_plan, "chosen_path", "?"),
+            getattr(reroute_plan, "eta_hours", 0.0),
+            response.get("status"),
+        )
+
+        # Trigger appointment reschedule if the reroute adds delay
+        delay_hours = getattr(reroute_plan, "eta_hours", 0.0)
+        if delay_hours > 0:
+            from config import AFFECTED_VACCINE_TYPES
+            reschedule = self.notify_appointment_reschedule(
+                shipment_id       = assessment.shipment_id,
+                delay_hours       = delay_hours,
+                affected_vaccines = AFFECTED_VACCINE_TYPES,
+                clinic_id         = destination,
+            )
+            response["appointment_reschedule"] = reschedule
+
+        return response
+
     def notify_appointment_reschedule(
         self,
         shipment_id: str,
