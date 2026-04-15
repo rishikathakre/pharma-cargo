@@ -2,7 +2,7 @@
 start.py
 --------
 One-command launcher for Pharma Cargo Monitor.
-Starts the HITL dashboard + live simulation together,
+Starts the HITL dashboard + map simulation + live simulation together,
 sharing a single in-memory ApprovalQueue so every agent
 decision surfaces directly in the browser.
 
@@ -10,6 +10,7 @@ Usage:
     python start.py                          # defaults: 3 shipments, 40 ticks, port 8080
     python start.py --shipments 5 --ticks 60
     python start.py --port 3000
+    python start.py --map-port 8090          # map simulation port (default: 8090)
     python start.py --no-browser             # skip auto-open
     python start.py --interval 3             # 3 seconds between ticks (default: 2)
 """
@@ -47,7 +48,7 @@ BANNER = """
 
 def _start_dashboard(queue, orchestrator, port: int) -> None:
     """
-    Run uvicorn in a daemon thread.
+    Run the HITL dashboard (hitl/dashboard.py) in a daemon thread.
     Shares the caller's ApprovalQueue and CascadeOrchestrator so the
     dashboard /simulate endpoint and the CLI simulation both use the
     same in-memory state.
@@ -66,10 +67,39 @@ def _start_dashboard(queue, orchestrator, port: int) -> None:
         app,
         host      = "0.0.0.0",
         port      = port,
-        log_level = "warning",   # suppress uvicorn noise; our logger handles output
+        log_level = "warning",
     )
     server = uvicorn.Server(config)
     server.install_signal_handlers = False  # main thread owns signals
+    server.run()
+
+
+# ── map simulation thread ─────────────────────────────────────────────────────
+
+def _start_map_sim(queue, orchestrator, port: int) -> None:
+    """
+    Run the interactive map simulation (map_sim/app.py) in a daemon thread.
+    Shares the same ApprovalQueue and CascadeOrchestrator as the dashboard
+    so HITL decisions from the map appear in both UIs.
+    """
+    try:
+        import uvicorn
+    except ImportError:
+        logger.error("uvicorn not installed — run: pip install uvicorn")
+        return
+
+    from map_sim.app import app as map_app, set_queue as map_set_queue, set_orchestrator as map_set_orch
+    map_set_queue(queue)
+    map_set_orch(orchestrator)
+
+    config = uvicorn.Config(
+        map_app,
+        host      = "0.0.0.0",
+        port      = port,
+        log_level = "warning",
+    )
+    server = uvicorn.Server(config)
+    server.install_signal_handlers = False
     server.run()
 
 
@@ -94,7 +124,7 @@ def _build_orchestrator(queue):
         anomaly_agent     = AnomalyAgent(tel),
         risk_agent        = RiskAgent(),
         action_agent      = ActionAgent(),
-        approval_queue    = queue,          # ← shared with dashboard
+        approval_queue    = queue,          # ← shared with dashboard + map sim
         audit_logger      = AuditLogger(),
         gdp_validator     = GDPValidator(),
         hospital_notifier = HospitalNotifier(),
@@ -142,6 +172,18 @@ def _run_simulation(orchestrator, n_shipments: int, max_ticks: int, interval: fl
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
+def _wait_for_port(port: int, timeout_sec: float = 5.0) -> bool:
+    """Poll until port is open or timeout expires. Returns True if open."""
+    import socket
+    deadline = time.time() + timeout_sec
+    while time.time() < deadline:
+        time.sleep(0.5)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("localhost", port)) == 0:
+                return True
+    return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Pharma Cargo Monitor — one-command launcher",
@@ -149,30 +191,33 @@ def main() -> None:
     )
     parser.add_argument("--shipments",  type=int,   default=3,    help="Concurrent shipments to simulate")
     parser.add_argument("--ticks",      type=int,   default=40,   help="Telemetry ticks per shipment")
-    parser.add_argument("--port",       type=int,   default=8080, help="Dashboard port")
+    parser.add_argument("--port",       type=int,   default=8080, help="HITL dashboard port")
+    parser.add_argument("--map-port",   type=int,   default=8090, help="Map simulation port")
     parser.add_argument("--interval",   type=float, default=2.0,  help="Seconds between telemetry ticks")
     parser.add_argument("--no-browser", action="store_true",      help="Skip auto-opening the browser")
     args = parser.parse_args()
 
     print(BANNER)
 
-    # ── check port availability ───────────────────────────────────────────────
     import socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        if s.connect_ex(("localhost", args.port)) == 0:
-            logger.error(
-                "Port %d is already in use. Stop the existing process or use --port <other>",
-                args.port,
-            )
-            sys.exit(1)
 
-    # ── shared queue + orchestrator (wires dashboard ↔ simulation) ──────────────
+    # ── check both ports are free ─────────────────────────────────────────────
+    for port, label in [(args.port, "Dashboard"), (args.map_port, "Map simulation")]:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("localhost", port)) == 0:
+                logger.error(
+                    "%s port %d is already in use. Stop the existing process or use --%s <other>",
+                    label, port, "port" if port == args.port else "map-port",
+                )
+                sys.exit(1)
+
+    # ── shared queue + orchestrator (wires dashboard ↔ map sim ↔ simulation) ──
     from hitl.approval_queue import ApprovalQueue
-    shared_queue       = ApprovalQueue(timeout_sec=300)
+    shared_queue        = ApprovalQueue(timeout_sec=300)
     logger.info("Building agent pipeline ...")
     shared_orchestrator = _build_orchestrator(shared_queue)
 
-    # ── start dashboard in background thread ──────────────────────────────────
+    # ── start HITL dashboard in background thread ─────────────────────────────
     dash_thread = threading.Thread(
         target = _start_dashboard,
         args   = (shared_queue, shared_orchestrator, args.port),
@@ -180,21 +225,31 @@ def main() -> None:
         name   = "hitl-dashboard",
     )
     dash_thread.start()
-    logger.info("Dashboard starting on port %d ...", args.port)
+    logger.info("HITL dashboard starting on port %d ...", args.port)
 
-    # wait for uvicorn to bind
-    url = f"http://localhost:{args.port}"
-    for attempt in range(10):
-        time.sleep(0.5)
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(("localhost", args.port)) == 0:
-                break
-    else:
-        logger.warning("Dashboard did not respond in 5 s — opening browser anyway")
+    # ── start map simulation in background thread ─────────────────────────────
+    map_thread = threading.Thread(
+        target = _start_map_sim,
+        args   = (shared_queue, shared_orchestrator, args.map_port),
+        daemon = True,
+        name   = "map-simulation",
+    )
+    map_thread.start()
+    logger.info("Map simulation starting on port %d ...", args.map_port)
+
+    # ── wait for both servers to bind ─────────────────────────────────────────
+    dash_url = f"http://localhost:{args.port}"
+    map_url  = f"http://localhost:{args.map_port}"
+
+    if not _wait_for_port(args.port):
+        logger.warning("HITL dashboard did not respond in 5 s — continuing anyway")
+    if not _wait_for_port(args.map_port):
+        logger.warning("Map simulation did not respond in 5 s — continuing anyway")
 
     # ── print startup summary ─────────────────────────────────────────────────
     logger.info("=" * 60)
-    logger.info("  [OK] Dashboard : %s", url)
+    logger.info("  [OK] HITL Dashboard  : %s", dash_url)
+    logger.info("  [OK] Map Simulation  : %s", map_url)
     logger.info("  [OK] Shipments : %d   Ticks : %d   Interval : %.1fs",
                 args.shipments, args.ticks, args.interval)
     logger.info("  [OK] Audit log : data/processed/audit.jsonl")
@@ -202,8 +257,9 @@ def main() -> None:
 
     # ── open browser ─────────────────────────────────────────────────────────
     if not args.no_browser:
-        webbrowser.open(url)
-        logger.info("Browser opened → %s", url)
+        webbrowser.open(dash_url)
+        webbrowser.open(map_url)
+        logger.info("Browser opened → %s  and  %s", dash_url, map_url)
 
     # ── run simulation in main thread ─────────────────────────────────────────
     try:
@@ -211,9 +267,11 @@ def main() -> None:
     except KeyboardInterrupt:
         logger.info("Simulation interrupted.")
 
-    # ── keep dashboard alive after simulation finishes ────────────────────────
+    # ── keep both services alive after simulation finishes ────────────────────
     logger.info("")
-    logger.info("Simulation complete. Dashboard still live at %s", url)
+    logger.info("Simulation complete. Services still live:")
+    logger.info("  HITL Dashboard : %s", dash_url)
+    logger.info("  Map Simulation : %s", map_url)
     logger.info("Press Ctrl+C to shut down.")
     try:
         while True:
