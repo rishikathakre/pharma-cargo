@@ -1,0 +1,7 @@
+carrier,region,avg_delay_hours,damage_claims_count,pharma_certified,shipments_processed
+DHL Lifesciences,Global,1.2,3,True,2400
+World Courier,Global,1.8,5,True,1800
+Marken,Europe/Americas,2.1,4,True,1500
+Cryoport,North America,1.5,2,True,900
+FedEx Custom Critical,North America,2.8,8,True,3200
+OceanAir Pharma,Asia-Pacific,4.2,14,False,2100
