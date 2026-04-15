@@ -219,31 +219,25 @@ class RiskAgent:
 
     def _estimate_spoilage(self, record: TelemetryRecord, anomalies: List[Anomaly]) -> float:
         """
-        Heuristic spoilage probability (0-1).
-        Factors: sustained excursion duration, temperature breach magnitude,
-        shock events, and delay hours (cold-chain vaccines degrade above 8°C
-        with cumulative time-temperature exposure).
+        Returns estimated spoilage probability (0.0–1.0).
+
+        TODO: Replace this stub with a pharmacological model grounded in real data:
+          - Mean Kinetic Temperature (MKT) per WHO TRS 961 Annex 9 / USP <1079>:
+              MKT = ΔH/R / -ln( Σ exp(-ΔH/RTi) / n )
+              where ΔH = activation energy (~83.14 kJ/mol for most vaccines),
+              R = gas constant, Ti = temperature at each reading (Kelvin).
+          - Product-specific stability profiles: each vaccine/biologic has its own
+              approved excursion window (e.g., mRNA vaccines: 2 hours at 8–25°C;
+              MMR: 72 hours at ≤25°C). These come from the product monograph or SmPC.
+          - Integrate cumulative time-temperature exposure (TTI) from TelemetryAgent
+              history, not just the current snapshot.
+          - Shock damage probability should use product-specific fragility ratings.
+
+        Until real data and product profiles are available, spoilage_prob = 0.0
+        so downstream financial calculations (insurance, inventory) are not
+        misleadingly populated with arbitrary heuristic numbers.
         """
-        prob = 0.0
-        for a in anomalies:
-            if a.anomaly_type == AnomalyType.SUSTAINED_EXCURSION:
-                duration = a.duration_min or 0
-                prob += min(duration / 120.0, 0.8)
-            elif a.anomaly_type in (AnomalyType.TEMP_HIGH, AnomalyType.TEMP_LOW):
-                # Scale by how far above threshold (each 2°C above limit adds ~10%)
-                if a.measured_value is not None and a.threshold is not None:
-                    excess = abs(a.measured_value - a.threshold)
-                    prob += min(0.15 + excess * 0.05, 0.45)
-                else:
-                    prob += 0.25
-            elif a.anomaly_type == AnomalyType.SHOCK_EVENT:
-                prob += 0.10
-            elif a.anomaly_type in (AnomalyType.FLIGHT_DELAY, AnomalyType.FLIGHT_DIVERSION):
-                # Delay above 6h at unknown temp conditions adds spoilage risk
-                delay = a.measured_value or 0
-                if delay > 6:
-                    prob += min((delay - 6) / 48.0, 0.25)
-        return min(prob, 1.0)
+        return 0.0
 
     # ------------------------------------------------------------------
 

@@ -3,7 +3,6 @@ DatasetLoader
 -------------
 Loads and analyses the raw CSV datasets to derive:
   - Carrier reliability profiles (from logistics_performance.csv)
-  - Risk calibration thresholds (from supply_chain_risk_dataset.csv)
   - Real-world shipment routes (from shipment.csv)
   - Vaccination demand by state (from us_state_vaccinations.csv)
 
@@ -11,6 +10,16 @@ Used by:
   simulation/stream_simulator.py  → realistic carrier delays + real routes
   notifications/hospital_notifier.py → vaccination-demand-based priority
   main.py                          → calibration summary at startup
+
+TODO: supply_chain_risk_dataset.csv is intentionally NOT loaded here.
+  Its temperature readings (22–27°C) are generic warehouse data, not cold-chain
+  pharmaceutical data (2–8°C). Once a pharma-specific IoT telemetry dataset is
+  available (real excursion events, MKT records, etc.), add a loader here to
+  calibrate agent thresholds dynamically rather than using hardcoded config.py values.
+
+NOTE: shipment.csv contains generic logistics data (Electronics, Textiles, etc.).
+  The origin/destination and customs_clearance_days columns are still usable, but
+  routes should be replaced or filtered to pharmaceutical shipments before production.
 """
 
 from __future__ import annotations
@@ -41,16 +50,6 @@ class CarrierProfile:
 
 
 @dataclass
-class RiskCalibration:
-    """Thresholds derived from supply_chain_risk_dataset.csv."""
-    shock_warning_g:    float   # avg vibration at risk_label=1
-    shock_critical_g:   float   # avg vibration at risk_label=2
-    humidity_warning_pct: float # avg humidity at risk_label=1
-    at_risk_ratio:      float   # fraction of historical records labelled at-risk
-    delay_prone_ratio:  float   # fraction of delayed shipments in supply chain data
-
-
-@dataclass
 class ShipmentRoute:
     origin:                    str
     destination:               str
@@ -76,10 +75,9 @@ class DatasetLoader:
     """
 
     def __init__(self):
-        self.carrier_profiles:    Dict[str, CarrierProfile]  = {}
-        self.risk_calibration:    Optional[RiskCalibration]  = None
-        self.shipment_routes:     List[ShipmentRoute]        = []
-        self.delayed_routes:      List[ShipmentRoute]        = []
+        self.carrier_profiles:    Dict[str, CarrierProfile]    = {}
+        self.shipment_routes:     List[ShipmentRoute]          = []
+        self.delayed_routes:      List[ShipmentRoute]          = []
         self.vaccination_demand:  Dict[str, VaccinationDemand] = {}
         self._loaded = False
 
@@ -90,10 +88,6 @@ class DatasetLoader:
             self._load_logistics_performance()
         except Exception as e:
             logger.warning("Could not load logistics_performance.csv: %s", e)
-        try:
-            self._load_supply_chain_risk()
-        except Exception as e:
-            logger.warning("Could not load supply_chain_risk_dataset.csv: %s", e)
         try:
             self._load_shipments()
         except Exception as e:
@@ -151,15 +145,6 @@ class DatasetLoader:
                     f"damage_claims={c.damage_claims}"
                 )
 
-        if self.risk_calibration:
-            rc = self.risk_calibration
-            lines.append("Risk calibration (from supply_chain_risk_dataset.csv):")
-            lines.append(f"  Shock warning threshold : {rc.shock_warning_g:.2f}g")
-            lines.append(f"  Shock critical threshold: {rc.shock_critical_g:.2f}g")
-            lines.append(f"  Humidity warning        : {rc.humidity_warning_pct:.1f}%")
-            lines.append(f"  Historical at-risk ratio: {rc.at_risk_ratio:.1%}")
-            lines.append(f"  Historical delay ratio  : {rc.delay_prone_ratio:.1%}")
-
         if self.shipment_routes:
             lines.append(f"Shipment routes loaded    : {len(self.shipment_routes)} "
                          f"({len(self.delayed_routes)} delayed)")
@@ -180,7 +165,6 @@ class DatasetLoader:
         with open(path, encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))
 
-        # Aggregate per carrier
         carrier_data: Dict[str, Dict] = {}
         for r in rows:
             name = r["carrier"]
@@ -188,7 +172,6 @@ class DatasetLoader:
             cd["delays"].append(float(r["delay_hours_avg"]))
             cd["claims"] += int(r["damage_claims_count"])
 
-        # Compute reliability score: normalise delay + claims (lower = better → invert)
         all_delays = [statistics.mean(d["delays"]) for d in carrier_data.values()]
         all_claims = [d["claims"] for d in carrier_data.values()]
         max_delay  = max(all_delays) or 1.0
@@ -206,28 +189,6 @@ class DatasetLoader:
                 damage_claims     = cd["claims"],
                 reliability_score = round(score, 3),
             )
-
-    def _load_supply_chain_risk(self) -> None:
-        path = _DATA_DIR / "supply_chain_risk_dataset.csv"
-        with open(path, encoding="utf-8-sig") as f:
-            rows = list(csv.DictReader(f))
-
-        total = len(rows)
-        at_risk  = sum(1 for r in rows if r["manual_risk_label"] in ("1", "2"))
-        delayed  = sum(1 for r in rows if r["shipment_status"] == "delayed")
-
-        # Vibration (≈ shock_g) averages per risk label
-        label1 = [float(r["vibration_level"]) for r in rows if r["manual_risk_label"] == "1"]
-        label2 = [float(r["vibration_level"]) for r in rows if r["manual_risk_label"] == "2"]
-        label1_hum = [float(r["humidity"])    for r in rows if r["manual_risk_label"] == "1"]
-
-        self.risk_calibration = RiskCalibration(
-            shock_warning_g      = round(statistics.mean(label1), 2) if label1 else 2.0,
-            shock_critical_g     = round(statistics.mean(label2), 2) if label2 else 3.5,
-            humidity_warning_pct = round(statistics.mean(label1_hum), 1) if label1_hum else 60.0,
-            at_risk_ratio        = round(at_risk / total, 3),
-            delay_prone_ratio    = round(delayed / total, 3),
-        )
 
     def _load_shipments(self) -> None:
         path = _DATA_DIR / "shipment.csv"
@@ -258,7 +219,6 @@ class DatasetLoader:
                 if row["daily_vaccinations"] and row["date"] > latest.get(loc, {}).get("date", ""):
                     latest[loc] = row
 
-        # Compute priority tiers based on daily vaccination volume
         demand_vals = [float(r["daily_vaccinations"]) for r in latest.values()
                        if r["daily_vaccinations"]]
         if not demand_vals:

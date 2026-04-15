@@ -17,8 +17,10 @@ from config import INVENTORY_API_URL
 
 logger = logging.getLogger(__name__)
 
-DOSES_PER_CONTAINER   = 5_000   # default estimate
-DOSE_VALUE_USD        = 25.0    # USD per dose
+# TODO: Replace with product catalogue lookup (by product_id / NDC code).
+#   These are order-of-magnitude placeholders only — see insurance_docs.py for context.
+DOSES_PER_CONTAINER = 5_000   # placeholder — varies by product and packaging
+DOSE_VALUE_USD      = 25.0    # USD per dose — placeholder
 
 
 class InventoryUpdater:

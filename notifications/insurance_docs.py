@@ -23,8 +23,12 @@ from config import INSURANCE_API_URL
 
 logger = logging.getLogger(__name__)
 
-# Product value estimates (USD) — override with actual product catalogue
-VACCINE_VALUE_PER_DOSE_USD = 25.0
+# TODO: Replace with a product catalogue lookup (by product_id / NDC code).
+#   $25/dose and 5000 doses/container are rough order-of-magnitude placeholders.
+#   Real values differ significantly: mRNA COVID-19 ~$20–$30, MMR ~$50–$70,
+#   specialty biologics can exceed $500/dose.  Container capacity also varies
+#   by product, packaging format, and cold-chain configuration.
+VACCINE_VALUE_PER_DOSE_USD  = 25.0
 DEFAULT_DOSES_PER_CONTAINER = 5000
 
 
@@ -46,7 +50,13 @@ class InsuranceDocGenerator:
         shipment_id: str,
         audit_records: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        """Build chain-of-custody from audit log records."""
+        """
+        Build chain-of-custody document from audit log records.
+
+        TODO: Wire this up — currently not called from anywhere in the pipeline.
+          Call from cascade_orchestrator when INITIATE_INSURANCE or EMERGENCY_RECALL
+          is executed, pulling records via AuditLogger.get_shipment_history().
+        """
         return {
             "document_type": "CHAIN_OF_CUSTODY",
             "shipment_id":   shipment_id,

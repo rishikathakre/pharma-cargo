@@ -25,7 +25,7 @@ from agents.reroute_engine import RerouteEngine
 from agents.telemetry_agent import TelemetryAgent, TelemetryRecord
 from compliance.audit_logger import AuditLogger
 from compliance.gdp_rules import GDPValidator
-from config import HITL_AUTO_APPROVE_LOW
+from config import AFFECTED_VACCINE_TYPES, HITL_AUTO_APPROVE_LOW
 from hitl.approval_queue import ApprovalQueue, ApprovalRequest, ApprovalStatus
 from notifications.hospital_notifier import HospitalNotifier
 from notifications.insurance_docs import InsuranceDocGenerator
@@ -318,7 +318,7 @@ class CascadeOrchestrator:
             reschedule  = self.hosp.notify_appointment_reschedule(
                 shipment_id      = assessment.shipment_id,
                 delay_hours      = delay_hours,
-                affected_vaccines= ["COVID-19", "Influenza", "Routine immunizations"],
+                affected_vaccines= AFFECTED_VACCINE_TYPES,
                 clinic_id        = destination,
             )
             result["appointment_reschedule"] = reschedule

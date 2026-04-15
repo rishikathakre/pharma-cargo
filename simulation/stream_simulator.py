@@ -83,10 +83,12 @@ class ShipmentState:
         self.carrier_delay_baseline = carrier_delay_baseline
         self.customs_days = customs_days
 
-        # Location (JFK baseline — lon/lat updated per tick)
-        self.latitude    = 40.6413 + random.uniform(-1, 1)
-        self.longitude   = -73.7781 + random.uniform(-2, 2)
-        self.altitude_m  = 10000.0
+        # TODO: GPS tracking — integrate with real flight/telematics API
+        # (e.g. FlightAware, OnAsset SDK) to provide meaningful location updates.
+        # Latitude/longitude are emitted as 0.0 until a real source is connected.
+        self.latitude    = 0.0
+        self.longitude   = 0.0
+        self.altitude_m  = 0.0
 
         # Sensor state
         self.temperature_c  = random.uniform(TEMP_MIN_C + 0.5, TEMP_MAX_C - 0.5)
@@ -103,7 +105,6 @@ class ShipmentState:
         self._apply_scenario()
         self._add_noise()
         self._drain_battery()
-        self._move_location()
 
         return {
             "shipment_id":    self.shipment_id,
@@ -112,9 +113,10 @@ class ShipmentState:
             "temperature_c":  round(self.temperature_c, 2),
             "humidity_pct":   round(self.humidity_pct, 1),
             "shock_g":        round(self.shock_g, 3),
-            "latitude":       round(self.latitude, 6),
-            "longitude":      round(self.longitude, 6),
-            "altitude_m":     round(self.altitude_m, 1),
+            # GPS: 0.0 until real telematics source is connected (see TODO above)
+            "latitude":       self.latitude,
+            "longitude":      self.longitude,
+            "altitude_m":     self.altitude_m,
             "customs_status": self.customs_status,
             "flight_status":  self.flight_status,
             "delay_hours":    round(self.delay_hours, 2),
@@ -180,11 +182,6 @@ class ShipmentState:
 
     def _drain_battery(self) -> None:
         self.battery_pct = max(0, self.battery_pct - random.uniform(0.05, 0.2))
-
-    def _move_location(self) -> None:
-        # Simulate eastward flight path
-        self.longitude += random.uniform(0.3, 0.6)
-        self.latitude  += random.gauss(0, 0.05)
 
 
 # ---------------------------------------------------------------------------
