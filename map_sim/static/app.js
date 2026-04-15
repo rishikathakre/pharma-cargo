@@ -714,4 +714,16 @@ for (const id of ["originLat", "originLon", "destLat", "destLon"]) {
   document.getElementById(id).addEventListener("input", () => drawPreview());
 }
 
+// Live ETA hint: on-screen completion = duration_seconds / speed_multiplier.
+function updateEtaHint() {
+  const dur = Number(document.getElementById("durationSeconds").value) || 3600;
+  const spd = Number(document.getElementById("speedMultiplier").value) || 120;
+  const etaSec = Math.round(dur / Math.max(1, spd));
+  const el = document.getElementById("etaSec");
+  if (el) el.textContent = etaSec < 60 ? `${etaSec}s` : `${Math.round(etaSec / 60)}m ${etaSec % 60}s`;
+}
+document.getElementById("durationSeconds").addEventListener("input", updateEtaHint);
+document.getElementById("speedMultiplier").addEventListener("input", updateEtaHint);
+updateEtaHint();
+
 

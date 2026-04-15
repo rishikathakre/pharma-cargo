@@ -269,12 +269,12 @@
 
           <div class="row grid2">
             <div>
-              <label for="durationSeconds">Duration (seconds)</label>
-              <input id="durationSeconds" value="45" />
+              <label for="durationSeconds">Sim flight time (s)</label>
+              <input id="durationSeconds" type="number" min="1" step="1" value="45" title="On-screen trip duration in seconds" />
             </div>
             <div>
               <label for="speedMultiplier">Speed multiplier</label>
-              <input id="speedMultiplier" value="10" />
+              <input id="speedMultiplier" type="number" min="1" step="1" value="10" title="Higher = faster movement" />
             </div>
           </div>
 
@@ -314,7 +314,6 @@
           <div class="small" style="margin-top: 10px">
             Tip: set destination weather to <b>Storm</b> to force holding + risk spikes.
           </div>
-        </div>
 
         <div class="section">
           <div class="title">
