@@ -175,7 +175,16 @@ class HospitalNotifier:
         return {"tier": "STANDARD", "location": destination, "escalate": False}
 
     def _send(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """HTTP POST to hospital webhook.  Falls back to dry-run if unreachable."""
+        """HTTP POST to hospital webhook.  Falls back to dry-run if unreachable.
+        Always pushes the payload into the in-process hospital dashboard store so
+        the notification center shows real alerts regardless of webhook status."""
+        # Push to in-process dashboard store (both run in same OS process via start.py)
+        try:
+            from hitl.hospital_dashboard import push_notification
+            push_notification(payload)
+        except Exception:
+            pass
+
         try:
             data = json.dumps(payload).encode("utf-8")
             req  = urllib.request.Request(

@@ -106,8 +106,7 @@ def _start_map_sim(queue, orchestrator, port: int) -> None:
 
 def _start_hospital(queue, port: int) -> None:
     """
-    Run the Hospital Vaccine Logistics Monitor in a daemon thread.
-    Shares the same ApprovalQueue so hospital staff see live shipment data.
+    Run the Hospital Notification Center in a daemon thread.
     """
     try:
         import uvicorn
@@ -115,8 +114,8 @@ def _start_hospital(queue, port: int) -> None:
         logger.error("uvicorn not installed — run: pip install uvicorn")
         return
 
-    from hitl.hospital_dashboard import app as hosp_app, set_queue as hosp_set_queue
-    hosp_set_queue(queue)
+    # Hospital UI is notification-driven (no queue wiring required).
+    from hitl.hospital_dashboard import app as hosp_app
 
     config = uvicorn.Config(
         hosp_app,
