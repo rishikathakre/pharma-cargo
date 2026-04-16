@@ -722,13 +722,30 @@ class Simulation:
             self.reroute_plan = plan_dict
             return False
 
-        iata = plan_dict.get("cold_storage_iata", "")
+        iata = plan_dict.get("divert_airport_iata", "") or plan_dict.get("cold_storage_iata", "")
         new_coords: Optional[Tuple[float, float]] = None
         new_name = ""
 
-        if chosen_path == "COLD_STORAGE" and iata and iata in COLD_STORAGE_COORDS:
-            new_coords = COLD_STORAGE_COORDS[iata]
-            new_name   = plan_dict.get("cold_storage_facility") or f"{iata} Cold-Storage Hub"
+        if chosen_path == "COLD_STORAGE":
+            # Use Gemini-recommended divert airport lat/lon from the reroute plan
+            d_lat = plan_dict.get("divert_airport_lat")
+            d_lon = plan_dict.get("divert_airport_lon")
+            if d_lat is not None and d_lon is not None:
+                try:
+                    new_coords = (float(d_lat), float(d_lon))
+                    new_name = (
+                        plan_dict.get("divert_airport_name")
+                        or plan_dict.get("cold_storage_facility")
+                        or f"{iata} Airport"
+                    )
+                except (ValueError, TypeError):
+                    pass
+
+            # Fallback: COLD_STORAGE_COORDS (only if Gemini didn't provide coords)
+            if new_coords is None and iata and iata in COLD_STORAGE_COORDS:
+                new_coords = COLD_STORAGE_COORDS[iata]
+                new_name = plan_dict.get("cold_storage_facility") or f"{iata} Cold-Storage Hub"
+
         elif chosen_path == "LAST_MILE_COURIER":
             # No specific hub coords: mark rerouted but keep original destination on map.
             self.rerouted      = True

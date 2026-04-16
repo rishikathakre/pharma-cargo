@@ -294,6 +294,8 @@ class ReroutePlan:
     divert_airport_name:    Optional[str] = None
     divert_airport_city:    Optional[str] = None
     divert_distance_km:     Optional[float] = None
+    divert_airport_lat:     Optional[float] = None
+    divert_airport_lon:     Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -312,6 +314,8 @@ class ReroutePlan:
             "divert_airport_name":     self.divert_airport_name,
             "divert_airport_city":     self.divert_airport_city,
             "divert_distance_km":      self.divert_distance_km,
+            "divert_airport_lat":      self.divert_airport_lat,
+            "divert_airport_lon":      self.divert_airport_lon,
             "urgency":                 self.urgency,
             "rationale":               self.rationale,
             "hospital_eta_note":       self.hospital_eta_note,
@@ -439,6 +443,8 @@ class RerouteEngine:
             divert_airport_name    = divert_airport.get("name") if divert_airport else None,
             divert_airport_city    = divert_airport.get("city") if divert_airport else None,
             divert_distance_km     = divert_airport.get("distance_km") if divert_airport else None,
+            divert_airport_lat     = divert_airport.get("lat") if divert_airport else None,
+            divert_airport_lon     = divert_airport.get("lon") if divert_airport else None,
             urgency                = urgency,
             rationale              = rationale,
             hospital_eta_note      = hospital_note,
@@ -931,6 +937,8 @@ Rules:
                         "iata":        div_iata,
                         "name":        db_entry["name"],
                         "city":        db_entry["city"],
+                        "lat":         db_entry["lat"],
+                        "lon":         db_entry["lon"],
                         "distance_km": dist,
                     }
                 else:
