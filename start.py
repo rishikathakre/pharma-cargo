@@ -2,12 +2,14 @@
 start.py
 --------
 One-command launcher for Pharma Cargo Monitor.
-Starts the HITL dashboard + map simulation, sharing a single
-in-memory ApprovalQueue so agent decisions surface in both UIs.
+Starts the HITL dashboard, hospital dashboard, and map simulation,
+sharing a single in-memory ApprovalQueue so agent decisions surface
+in all UIs.
 
 Usage:
-    python start.py                  # default ports: dashboard=8080, map=8090
+    python start.py                  # default ports: dashboard=8080, hospital=8060, map=8090
     python start.py --port 3000
+    python start.py --hospital-port 3001
     python start.py --map-port 8091
     python start.py --no-browser     # skip auto-open
 """
@@ -92,6 +94,33 @@ def _start_map_sim(queue, orchestrator, port: int) -> None:
     config = uvicorn.Config(
         map_app,
         host      = "0.0.0.0",
+        port      = port,
+        log_level = "warning",
+    )
+    server = uvicorn.Server(config)
+    server.install_signal_handlers = False
+    server.run()
+
+
+# ── hospital dashboard thread ─────────────────────────────────────────────────
+
+def _start_hospital(queue, port: int) -> None:
+    """
+    Run the Hospital Vaccine Logistics Monitor in a daemon thread.
+    Shares the same ApprovalQueue so hospital staff see live shipment data.
+    """
+    try:
+        import uvicorn
+    except ImportError:
+        logger.error("uvicorn not installed — run: pip install uvicorn")
+        return
+
+    from hitl.hospital_dashboard import app as hosp_app, set_queue as hosp_set_queue
+    hosp_set_queue(queue)
+
+    config = uvicorn.Config(
+        hosp_app,
+        host      = "127.0.0.1",
         port      = port,
         log_level = "warning",
     )
@@ -186,17 +215,22 @@ def main() -> None:
         description="Pharma Cargo Monitor — one-command launcher",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--port",       type=int,   default=8080, help="HITL dashboard port")
-    parser.add_argument("--map-port",   type=int,   default=8090, help="Map simulation port")
-    parser.add_argument("--no-browser", action="store_true",      help="Skip auto-opening the browser")
+    parser.add_argument("--port",           type=int,   default=8080, help="HITL dashboard port")
+    parser.add_argument("--hospital-port",  type=int,   default=8060, help="Hospital dashboard port")
+    parser.add_argument("--map-port",       type=int,   default=8090, help="Map simulation port")
+    parser.add_argument("--no-browser",     action="store_true",      help="Skip auto-opening the browser")
     args = parser.parse_args()
 
     print(BANNER)
 
     import socket
 
-    # ── check both ports are free ─────────────────────────────────────────────
-    for port, label in [(args.port, "Dashboard"), (args.map_port, "Map simulation")]:
+    # ── check all ports are free ──────────────────────────────────────────────
+    for port, label in [
+        (args.port, "Dashboard"),
+        (args.hospital_port, "Hospital dashboard"),
+        (args.map_port, "Map simulation"),
+    ]:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if s.connect_ex(("localhost", port)) == 0:
                 logger.error(
@@ -221,6 +255,16 @@ def main() -> None:
     dash_thread.start()
     logger.info("HITL dashboard starting on port %d ...", args.port)
 
+    # ── start hospital dashboard in background thread ─────────────────────────
+    hosp_thread = threading.Thread(
+        target = _start_hospital,
+        args   = (shared_queue, args.hospital_port),
+        daemon = True,
+        name   = "hospital-dashboard",
+    )
+    hosp_thread.start()
+    logger.info("Hospital dashboard starting on port %d ...", args.hospital_port)
+
     # ── start map simulation in background thread ─────────────────────────────
     map_thread = threading.Thread(
         target = _start_map_sim,
@@ -231,32 +275,38 @@ def main() -> None:
     map_thread.start()
     logger.info("Map simulation starting on port %d ...", args.map_port)
 
-    # ── wait for both servers to bind ─────────────────────────────────────────
+    # ── wait for all servers to bind ──────────────────────────────────────────
     dash_url = f"http://localhost:{args.port}"
+    hosp_url = f"http://localhost:{args.hospital_port}"
     map_url  = f"http://localhost:{args.map_port}"
 
     if not _wait_for_port(args.port):
         logger.warning("HITL dashboard did not respond in 5 s — continuing anyway")
+    if not _wait_for_port(args.hospital_port):
+        logger.warning("Hospital dashboard did not respond in 5 s — continuing anyway")
     if not _wait_for_port(args.map_port):
         logger.warning("Map simulation did not respond in 5 s — continuing anyway")
 
     # ── print startup summary ─────────────────────────────────────────────────
     logger.info("=" * 60)
-    logger.info("  [OK] HITL Dashboard  : %s", dash_url)
-    logger.info("  [OK] Map Simulation  : %s", map_url)
+    logger.info("  [OK] HITL Dashboard      : %s", dash_url)
+    logger.info("  [OK] Hospital Dashboard  : %s", hosp_url)
+    logger.info("  [OK] Map Simulation      : %s", map_url)
     logger.info("  [OK] Audit log : data/processed/audit.jsonl")
     logger.info("=" * 60)
 
     # ── open browser ─────────────────────────────────────────────────────────
     if not args.no_browser:
         webbrowser.open(dash_url)
+        webbrowser.open(hosp_url)
         webbrowser.open(map_url)
-        logger.info("Browser opened → %s  and  %s", dash_url, map_url)
+        logger.info("Browser opened → %s  %s  %s", dash_url, hosp_url, map_url)
 
-    # ── keep both services alive ──────────────────────────────────────────────
-    logger.info("  Services are live. Press Ctrl+C to shut down.")
-    logger.info("  HITL Dashboard : %s", dash_url)
-    logger.info("  Map Simulation : %s", map_url)
+    # ── keep all services alive ───────────────────────────────────────────────
+    logger.info("  All services are live. Press Ctrl+C to shut down.")
+    logger.info("  HITL Dashboard      : %s", dash_url)
+    logger.info("  Hospital Dashboard  : %s", hosp_url)
+    logger.info("  Map Simulation      : %s", map_url)
     try:
         while True:
             time.sleep(1)

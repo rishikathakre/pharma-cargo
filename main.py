@@ -139,7 +139,7 @@ def run_single_pipeline() -> None:
 
 
 def run_dashboard(port: int = 8080) -> None:
-    """Start the HITL FastAPI dashboard."""
+    """Start both HITL + Hospital dashboards on one server, sharing one queue."""
     try:
         import uvicorn
     except ImportError:
@@ -147,18 +147,44 @@ def run_dashboard(port: int = 8080) -> None:
         sys.exit(1)
 
     from hitl.approval_queue import ApprovalQueue
-    from hitl.dashboard import app, set_queue, set_orchestrator
+    from hitl.dashboard import app as hitl_app, set_queue as hitl_set_queue, set_orchestrator
+    from hitl.hospital_dashboard import app as hosp_app, set_queue as hosp_set_queue
     from agents.cascade_orchestrator import CascadeOrchestrator
+
+    # Single shared queue — both dashboards see the same data
+    queue = ApprovalQueue()
+    hitl_set_queue(queue)
+    hosp_set_queue(queue)
+    set_orchestrator(CascadeOrchestrator(approval_queue=queue))
+
+    # Mount hospital dashboard under /hospital on the same server
+    hitl_app.mount("/hospital", hosp_app)
+
+    logger.info("Starting dashboards on http://localhost:%d", port)
+    logger.info("  HITL operator dashboard : http://localhost:%d/", port)
+    logger.info("  Hospital vaccine monitor: http://localhost:%d/hospital/", port)
+    logger.info("  API docs                : http://localhost:%d/docs", port)
+    uvicorn.run(hitl_app, host="127.0.0.1", port=port)
+
+
+def run_hospital_dashboard(port: int = 8060) -> None:
+    """Start the Hospital dashboard standalone (separate queue, for quick demos)."""
+    try:
+        import uvicorn
+    except ImportError:
+        logger.error("uvicorn not installed. Run: pip install uvicorn")
+        sys.exit(1)
+
+    from hitl.approval_queue import ApprovalQueue
+    from hitl.hospital_dashboard import app, set_queue
 
     queue = ApprovalQueue()
     set_queue(queue)
-    # Orchestrator shares the same in-memory ApprovalQueue so the UI can
-    # show pending approvals from simulation runs started via the dashboard.
-    set_orchestrator(CascadeOrchestrator(approval_queue=queue))
 
-    logger.info("Starting HITL dashboard on http://localhost:%d", port)
-    logger.info("API docs: http://localhost:%d/docs", port)
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    logger.info("Starting Hospital Vaccine Logistics Monitor on http://localhost:%d", port)
+    logger.info("  NOTE: Running standalone — not linked to HITL dashboard.")
+    logger.info("  For linked mode, use: python main.py dashboard")
+    uvicorn.run(app, host="127.0.0.1", port=port)
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +204,10 @@ def main() -> None:
     dash_parser = subparsers.add_parser("dashboard", help="Start HITL dashboard")
     dash_parser.add_argument("--port", type=int, default=8080)
 
+    # hospital
+    hosp_parser = subparsers.add_parser("hospital", help="Start Hospital Vaccine Logistics Monitor")
+    hosp_parser.add_argument("--port", type=int, default=8060)
+
     # test-pipeline
     subparsers.add_parser("test-pipeline", help="Single pipeline smoke test")
 
@@ -187,6 +217,8 @@ def main() -> None:
         run_simulation(n_shipments=args.shipments, max_ticks=args.ticks)
     elif args.command == "dashboard":
         run_dashboard(port=args.port)
+    elif args.command == "hospital":
+        run_hospital_dashboard(port=args.port)
     elif args.command == "test-pipeline":
         run_single_pipeline()
 
