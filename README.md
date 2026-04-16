@@ -1,9 +1,11 @@
 # Pharma Cargo Monitor
 
-**Team Terp Agents** · Sahil Chordia · Harsh Shrishrimal · Rishika Thakre · Rishabh Ranka
-UMD Agentic AI Challenge 2026 : Cargo Monitoring Track
+### Team Terp Agents
+### Team Members - Sahil Chordia · Harsh Shrishrimal · Rishika Thakre · Rishabh Ranka
 
-> An agentic AI system for real-time pharmaceutical cold-chain monitoring. Autonomous agents detect anomalies in IoT telemetry from smart containers, assess risk of spoilage or delay, and trigger cascading operational actions — all with GDP/FDA-compliant audit trails and human-in-the-loop oversight.
+*UMD Agentic AI Challenge 2026 : Cargo Monitoring Track*
+
+> An agentic AI system for real-time pharmaceutical cold-chain monitoring. Autonomous agents detect anomalies in IoT telemetry from smart containers, assess risk of spoilage or delay, and trigger cascading operational actions, all with GDP/FDA-compliant audit trails and human-in-the-loop oversight.
 
 ---
 
@@ -207,7 +209,7 @@ pytest tests/ -v                                   # Run tests
 | GDP/FDA compliance | EU GDP 2013/C 343/01 · 21 CFR 211.68 · 21 CFR 600.15 |
 | ALCOA+ audit trail | Immutable append-only JSONL, queryable by shipment or event type |
 | Gemini integration | Optional NL risk justifications and reroute planning narratives |
-| LangGraph orchestration | Conditional routing — clean ticks short-circuit to audit |
+| LangGraph orchestration | Conditional routing, clean ticks short-circuit to audit |
 
 ---
 
