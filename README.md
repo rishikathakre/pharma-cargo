@@ -1,6 +1,6 @@
 # Pharma Cargo Monitor
 
-### Team Terp Agents
+### Team - Agent Terps
 ### Team Members - Sahil Chordia · Harsh Shrishrimal · Rishika Thakre · Rishabh Ranka
 
 *UMD Agentic AI Challenge 2026 : Cargo Monitoring Track*
