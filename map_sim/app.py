@@ -748,7 +748,26 @@ class Simulation:
         self.original_destination    = self.destination
 
         # Build new route from current position to cold-storage hub
-        new_route_pts = _route_points(current_pos, new_coords, segments=48)
+        # For short diversions, use a simple straight line (no arc bulge)
+        dist_km = 0.0
+        try:
+            dlat = new_coords[0] - current_pos[0]
+            dlon = new_coords[1] - current_pos[1]
+            # Rough km estimate
+            dist_km = ((dlat * 111.0) ** 2 + (dlon * 111.0 * math.cos(math.radians(current_pos[0]))) ** 2) ** 0.5
+        except Exception:
+            pass
+
+        if dist_km < 500:
+            # Short diversion — straight line, no arc
+            n = max(4, int(dist_km / 10))
+            new_route_pts = [
+                (current_pos[0] + (new_coords[0] - current_pos[0]) * i / n,
+                 current_pos[1] + (new_coords[1] - current_pos[1]) * i / n)
+                for i in range(n + 1)
+            ]
+        else:
+            new_route_pts = _route_points(current_pos, new_coords, segments=48)
 
         # Redirect the sim: update destination + route + reset progress clock
         self.destination      = new_coords
@@ -1223,6 +1242,19 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
             state = ORCHESTRATOR.run(tel)
             with s._pipeline_lock:
                 s._last_risk_state = state
+
+            # If a REROUTE_SHIPMENT action was executed, apply it to the map
+            if not s.rerouted and state.action_results:
+                for r in state.action_results:
+                    if (
+                        r.success
+                        and r.action.value == "REROUTE_SHIPMENT"
+                        and isinstance(r.payload, dict)
+                    ):
+                        plan_dict = r.payload.get("reroute_plan") or r.payload
+                        s.apply_reroute(plan_dict)
+                        break
+
             if s.phase == "ARRIVED":
                 return
 
@@ -1436,13 +1468,18 @@ def approve_hitl(request_id: str, body: ApproveRequestBody) -> dict:
         except Exception:
             raise HTTPException(status_code=422, detail="Invalid approved_actions")
 
+    # Approve (or re-approve if already resolved by shared queue)
     updated = _approval_queue.approve(request_id, body.operator, actions, body.notes)
     _audit.log_hitl_decision(updated)
 
     sim = next((s for s in SIMS.values() if s.shipment_id == updated.shipment_id), None)
+
+    # Use approved_actions from the updated request (handles both fresh and forwarded approvals)
+    actions_to_execute = updated.approved_actions
     assessment = sim._last_assessment if sim else None
-    if assessment is not None and updated.approved_actions:
-        results = _orchestrator.act.execute(assessment, updated.approved_actions)
+
+    if assessment is not None and actions_to_execute:
+        results = _orchestrator.act.execute(assessment, actions_to_execute)
         if sim:
             sim._last_actions = [r.to_dict() for r in results]
         for r in results:
@@ -1456,6 +1493,16 @@ def approve_hitl(request_id: str, body: ApproveRequestBody) -> dict:
             ):
                 plan_dict = r.payload.get("reroute_plan") or r.payload
                 sim.apply_reroute(plan_dict)
+    elif sim is not None and not assessment:
+        # No assessment cached — try to apply reroute from the reroute store
+        import logging as _rl
+        _rl.getLogger(__name__).warning(
+            "[%s] No cached assessment for reroute — check _REROUTE_STORE",
+            updated.shipment_id,
+        )
+        stored = _REROUTE_STORE.get(updated.shipment_id)
+        if stored and not sim.rerouted:
+            sim.apply_reroute(stored)
 
     if sim and sim._last_hitl_request_id == request_id:
         sim._last_hitl_request_id = None

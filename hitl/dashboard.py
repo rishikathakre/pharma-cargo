@@ -887,6 +887,11 @@ def approve_request(request_id: str, body: ApproveRequest):
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e))
     updated = queue.approve(request_id, body.operator, actions, body.notes)
+
+    # Forward approval to map sim so it can execute actions + apply reroute
+    _forward_to_map_sim(request_id, "approve", body.operator, body.notes,
+                        body.approved_actions)
+
     return updated.to_dict()
 
 
@@ -897,7 +902,41 @@ def reject_request(request_id: str, body: RejectRequest):
     if req is None:
         raise HTTPException(status_code=404, detail="Request not found")
     updated = queue.reject(request_id, body.operator, body.notes)
+
+    # Forward rejection to map sim
+    _forward_to_map_sim(request_id, "reject", body.operator, body.notes)
+
     return updated.to_dict()
+
+
+def _forward_to_map_sim(request_id: str, action: str, operator: str,
+                        notes: str = "", approved_actions=None):
+    """Forward HITL decision to the map sim so it can execute actions + reroute."""
+    import urllib.request
+    import json as _json
+    import logging as _fwd_log
+
+    _logger = _fwd_log.getLogger("hitl.forward")
+
+    # Map sim runs on port 8090 by default (from start.py --map-port)
+    map_port = 8090
+    url = f"http://localhost:{map_port}/api/hitl/{request_id}/{action}"
+    payload = {"operator": operator, "notes": f"[via HITL dashboard] {notes}"}
+    if action == "approve" and approved_actions is not None:
+        payload["approved_actions"] = approved_actions
+
+    try:
+        data = _json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            body = resp.read().decode("utf-8")
+            _logger.info("Forwarded %s to map sim: %s → %s", action, request_id[:12], resp.status)
+    except Exception as exc:
+        _logger.warning("Forward to map sim failed (port %d): %s", map_port, exc)
 
 
 @app.get("/audit", response_model=List[dict], tags=["Compliance"])

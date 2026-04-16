@@ -70,6 +70,35 @@ _COLD_STORAGE_FACILITIES: Dict[str, Tuple[str, float]] = {
 
 _DEFAULT_FACILITY = ("Nearest GDP-Compliant Cold Hub (auto-located)", 3.0)
 
+# GPS coordinates for each cold-storage facility (for distance-based selection)
+_FACILITY_COORDS: Dict[str, Tuple[float, float]] = {
+    "JFK": (40.6413, -73.7781),
+    "LAX": (33.9425, -118.4081),
+    "ORD": (41.9742, -87.9073),
+    "MIA": (25.7959, -80.2870),
+    "BOS": (42.3656, -71.0096),
+    "FRA": (50.0379,   8.5622),
+    "AMS": (52.3086,   4.7639),
+    "CDG": (49.0097,   2.5479),
+    "LHR": (51.4700,  -0.4543),
+    "ZRH": (47.4647,   8.5492),
+    "SIN": ( 1.3644, 103.9915),
+    "HKG": (22.3080, 113.9185),
+    "PVG": (31.1443, 121.8083),
+    "BOM": (19.0896,  72.8656),
+    "NRT": (35.7647, 140.3864),
+}
+
+
+def _haversine_km_coords(a: Tuple[float, float], b: Tuple[float, float]) -> float:
+    """Great-circle distance in km between two (lat, lon) tuples."""
+    lat1, lon1 = math.radians(a[0]), math.radians(a[1])
+    lat2, lon2 = math.radians(b[0]), math.radians(b[1])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    h = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    return 2 * 6371.0 * math.asin(math.sqrt(h))
+
 # Map common full airport names (as used by map_sim) → IATA codes for facility lookup.
 _AIRPORT_NAME_TO_IATA: Dict[str, str] = {
     "jfk airport":              "JFK",
@@ -488,7 +517,18 @@ class RerouteEngine:
         PATH A: Divert to nearest GDP-compliant cold-storage facility.
         ETA = time to get cargo off current transport + into cold chain.
         """
-        facility_name, eta, iata = self._nearest_facility(destination)
+        # Use current GPS position for nearest facility (preferred over destination name)
+        metadata = getattr(assessment, "metadata", {})
+        current_coords = None
+        lat = metadata.get("latitude") or metadata.get("lat")
+        lon = metadata.get("longitude") or metadata.get("lon")
+        if lat is not None and lon is not None:
+            try:
+                current_coords = (float(lat), float(lon))
+            except (ValueError, TypeError):
+                pass
+
+        facility_name, eta, iata = self._nearest_facility(destination, current_coords)
         margin = tts - eta
         return PathEvaluation(
             path     = "COLD_STORAGE",
@@ -614,18 +654,32 @@ class RerouteEngine:
                     delay = max(delay, float(a.measured_value))
         return delay
 
-    def _nearest_facility(self, destination: str) -> Tuple[str, float, str]:
+    def _nearest_facility(self, destination: str, current_coords: Optional[Tuple[float, float]] = None) -> Tuple[str, float, str]:
         """
         Return (facility_name, divert_hours, iata_code) for the cold-storage hub
-        closest to the destination airport/city.
+        closest to the aircraft's current position (preferred) or destination name.
 
-        Resolution order:
-          1. Direct IATA code match   (e.g. "LHR")
-          2. Full-name → IATA map     (e.g. "Heathrow Airport" → LHR)
-          3. Substring match on IATA  (e.g. "JFK" anywhere in dest string)
-          4. Substring match on facility name
-          5. Default fallback (iata_code = "")
+        If current_coords (lat, lon) are provided, uses GPS distance.
+        Otherwise falls back to name-based matching.
         """
+        # GPS-based selection (preferred — always picks the truly nearest facility)
+        if current_coords is not None and _FACILITY_COORDS:
+            best_iata = ""
+            best_dist = float("inf")
+            for iata, coords in _FACILITY_COORDS.items():
+                if iata not in _COLD_STORAGE_FACILITIES:
+                    continue
+                dist = _haversine_km_coords(current_coords, coords)
+                if dist < best_dist:
+                    best_dist = dist
+                    best_iata = iata
+            if best_iata:
+                fname, hours = _COLD_STORAGE_FACILITIES[best_iata]
+                # Adjust ETA based on distance (rough: 800 km/h cruise speed)
+                adjusted_hours = max(hours, best_dist / 800.0)
+                return fname, round(adjusted_hours, 1), best_iata
+
+        # Fallback: name-based matching
         dest_upper = destination.upper()
         dest_lower = destination.lower()
 
@@ -634,7 +688,7 @@ class RerouteEngine:
             fname, hours = _COLD_STORAGE_FACILITIES[dest_upper]
             return fname, hours, dest_upper
 
-        # 2. Full airport-name → IATA (handles map_sim names like "Heathrow Airport")
+        # 2. Full airport-name → IATA
         for name_key, iata in _AIRPORT_NAME_TO_IATA.items():
             if name_key in dest_lower:
                 if iata in _COLD_STORAGE_FACILITIES:
@@ -644,11 +698,6 @@ class RerouteEngine:
         # 3. IATA code anywhere in destination string
         for code, (fname, hours) in _COLD_STORAGE_FACILITIES.items():
             if code in dest_upper:
-                return fname, hours, code
-
-        # 4. Facility name substring match
-        for code, (fname, hours) in _COLD_STORAGE_FACILITIES.items():
-            if dest_upper in fname.upper():
                 return fname, hours, code
 
         fname, hours = _DEFAULT_FACILITY
