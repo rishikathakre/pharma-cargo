@@ -48,45 +48,37 @@ except Exception:
 # avg_divert_hours = estimated time from diversion decision to cargo secured.
 # ---------------------------------------------------------------------------
 _COLD_STORAGE_FACILITIES: Dict[str, Tuple[str, float]] = {
-    # North America
-    "JFK":  ("World Courier JFK — Jamaica, NY (GDP-certified)",          1.5),
-    "LAX":  ("Cryoport Los Angeles Cold Hub (GDP/IATA CEIV)",            2.0),
-    "ORD":  ("AmerisourceBergen Chicago Cold Chain (GDP-certified)",      2.0),
-    "MIA":  ("Marken Miami Pharma Hub (GDP/GDP+)",                        1.5),
-    "BOS":  ("Cardinal Health Boston (GDP-certified)",                    2.0),
-    # Europe
-    "FRA":  ("Lufthansa Cargo Cool Center Frankfurt (IATA CEIV Pharma)", 1.0),
-    "AMS":  ("Schiphol Pharma Hub Amsterdam (GDP-certified)",             1.5),
-    "CDG":  ("Paris CDG Pharma Corridor (IATA CEIV)",                     2.0),
-    "LHR":  ("Heathrow Pharma Zone (MHRA-licensed)",                      1.5),
-    "ZRH":  ("Kuehne+Nagel Zurich Pharma (GDP-certified)",                1.5),
-    # Asia-Pacific
-    "SIN":  ("Singapore Changi Pharma Hub (HSA-licensed, GDP)",           2.0),
-    "HKG":  ("Hong Kong HACTL Pharma (GDP-certified)",                    2.5),
-    "PVG":  ("Shanghai Pudong Pharma Cold Hub (GDP-certified)",           3.0),
-    "BOM":  ("Mumbai CSIA Pharma Zone (CDSCO-licensed)",                  2.5),
-    "NRT":  ("Tokyo Narita Nippon Express Pharma (PMDA-licensed)",        2.0),
+    # USA only
+    "JFK":  ("World Courier JFK — Jamaica, NY (GDP-certified)",           1.5),
+    "EWR":  ("Marken Newark Pharma Hub (GDP/IATA CEIV)",                  1.5),
+    "LAX":  ("Cryoport Los Angeles Cold Hub (GDP/IATA CEIV)",             2.0),
+    "ORD":  ("AmerisourceBergen Chicago Cold Chain (GDP-certified)",       2.0),
+    "MIA":  ("Marken Miami Pharma Hub (GDP/GDP+)",                         1.5),
+    "BOS":  ("Cardinal Health Boston (GDP-certified)",                     2.0),
+    "IAD":  ("Washington Dulles Pharma Corridor (GDP-certified)",          1.5),
+    "DFW":  ("DFW IATA CEIV Pharma Hub (GDP-certified)",                  2.0),
+    "SFO":  ("SFO Bio/Pharma Cold Hub (IATA CEIV)",                       2.0),
+    "PHL":  ("Philadelphia Pharma Valley Cold Hub (GDP-certified)",        1.5),
+    "IAH":  ("Houston Life Sciences Cold Hub (GDP-certified)",             2.0),
+    "SLC":  ("Salt Lake City Cold-Chain Distribution Hub (GDP-certified)", 2.0),
 }
 
 _DEFAULT_FACILITY = ("Nearest GDP-Compliant Cold Hub (auto-located)", 3.0)
 
-# GPS coordinates for each cold-storage facility (for distance-based selection)
+# GPS coordinates for each cold-storage facility (USA only, for distance-based selection)
 _FACILITY_COORDS: Dict[str, Tuple[float, float]] = {
-    "JFK": (40.6413, -73.7781),
+    "JFK": (40.6413,  -73.7781),
+    "EWR": (40.6895,  -74.1745),
     "LAX": (33.9425, -118.4081),
-    "ORD": (41.9742, -87.9073),
-    "MIA": (25.7959, -80.2870),
-    "BOS": (42.3656, -71.0096),
-    "FRA": (50.0379,   8.5622),
-    "AMS": (52.3086,   4.7639),
-    "CDG": (49.0097,   2.5479),
-    "LHR": (51.4700,  -0.4543),
-    "ZRH": (47.4647,   8.5492),
-    "SIN": ( 1.3644, 103.9915),
-    "HKG": (22.3080, 113.9185),
-    "PVG": (31.1443, 121.8083),
-    "BOM": (19.0896,  72.8656),
-    "NRT": (35.7647, 140.3864),
+    "ORD": (41.9742,  -87.9073),
+    "MIA": (25.7959,  -80.2870),
+    "BOS": (42.3656,  -71.0096),
+    "IAD": (38.9445,  -77.4558),
+    "DFW": (32.8998,  -97.0403),
+    "SFO": (37.6213, -122.3790),
+    "PHL": (39.8744,  -75.2424),
+    "IAH": (29.9902,  -95.3368),
+    "SLC": (40.7884, -111.9778),
 }
 
 
@@ -100,36 +92,33 @@ def _haversine_km_coords(a: Tuple[float, float], b: Tuple[float, float]) -> floa
     return 2 * 6371.0 * math.asin(math.sqrt(h))
 
 # Map common full airport names (as used by map_sim) → IATA codes for facility lookup.
+# USA only.
 _AIRPORT_NAME_TO_IATA: Dict[str, str] = {
-    "jfk airport":              "JFK",
-    "john f kennedy":           "JFK",
-    "heathrow airport":         "LHR",
-    "london heathrow":          "LHR",
-    "frankfurt airport":        "FRA",
-    "frankfurt am main":        "FRA",
-    "mumbai airport":           "BOM",
-    "chhatrapati shivaji":      "BOM",
-    "o'hare airport":           "ORD",
-    "ohare airport":            "ORD",
-    "chicago o'hare":           "ORD",
-    "pudong airport":           "PVG",
-    "shanghai pudong":          "PVG",
-    "singapore changi airport": "SIN",
-    "changi airport":           "SIN",
-    "los angeles":              "LAX",
-    "lax airport":              "LAX",
-    "miami airport":            "MIA",
-    "miami international":      "MIA",
-    "boston airport":           "BOS",
-    "logan airport":            "BOS",
-    "amsterdam airport":        "AMS",
-    "schiphol":                 "AMS",
-    "paris cdg":                "CDG",
-    "charles de gaulle":        "CDG",
-    "zurich airport":           "ZRH",
-    "hong kong airport":        "HKG",
-    "narita airport":           "NRT",
-    "tokyo narita":             "NRT",
+    "jfk airport":                          "JFK",
+    "john f kennedy":                       "JFK",
+    "newark airport":                       "EWR",
+    "newark liberty":                       "EWR",
+    "o'hare airport":                       "ORD",
+    "ohare airport":                        "ORD",
+    "chicago o'hare":                       "ORD",
+    "los angeles":                          "LAX",
+    "lax airport":                          "LAX",
+    "miami airport":                        "MIA",
+    "miami international":                  "MIA",
+    "boston airport":                       "BOS",
+    "logan airport":                        "BOS",
+    "washington dulles":                    "IAD",
+    "dulles airport":                       "IAD",
+    "dallas fort worth":                    "DFW",
+    "dfw airport":                          "DFW",
+    "san francisco":                        "SFO",
+    "sfo airport":                          "SFO",
+    "philadelphia airport":                 "PHL",
+    "philadelphia international":           "PHL",
+    "houston":                              "IAH",
+    "george bush intercontinental":         "IAH",
+    "salt lake city":                       "SLC",
+    "slc airport":                          "SLC",
 }
 
 # Emergency pharma courier baseline ETA (hours from pickup to cold-chain handoff)
@@ -690,18 +679,14 @@ class RerouteEngine:
             fname, hours = _COLD_STORAGE_FACILITIES[dest_upper]
             return fname, hours, dest_upper
 
-        # 2. Full airport-name → IATA
+        # 2. Full airport-name → IATA (exact substring on known names only)
         for name_key, iata in _AIRPORT_NAME_TO_IATA.items():
             if name_key in dest_lower:
                 if iata in _COLD_STORAGE_FACILITIES:
                     fname, hours = _COLD_STORAGE_FACILITIES[iata]
                     return fname, hours, iata
 
-        # 3. IATA code anywhere in destination string
-        for code, (fname, hours) in _COLD_STORAGE_FACILITIES.items():
-            if code in dest_upper:
-                return fname, hours, code
-
+        # No match — use default fallback (GPS path above should have caught this first)
         fname, hours = _DEFAULT_FACILITY
         return fname, hours, ""
 
