@@ -575,6 +575,7 @@ input[type=text]:focus, select:focus {
 <div id="toast"></div>
 
 <script>
+var _lastRerouteJSON = '';
 const RISK_LEVELS = ['LOW','MEDIUM','HIGH','CRITICAL'];
 const RISK_S = {
   LOW:      {bg:'#dcfce7',color:'#15803d',border:'#86efac',hbg:'rgba(220,252,231,0.35)'},
@@ -832,11 +833,19 @@ async function refresh(){
     document.getElementById('last-refresh').textContent=new Date().toLocaleTimeString();
   }catch(e){console.warn('Refresh error:',e.message);}
 
-  // Fetch reroute results from the map sim process (port 8090)
+  // Fetch reroute results — try same-origin first, fall back to map sim port.
+  // Only rebuild DOM when data actually changed (prevents flicker).
   try{
-    const rp=await(await fetch('http://localhost:8090/api/reroute')).json();
+    var rResp;
+    try{ rResp=await fetch('/reroute'); }catch(e){ rResp=null; }
+    if(!rResp||!rResp.ok) rResp=await fetch('http://localhost:8090/api/reroute');
+    const rp=await rResp.json();
+    var rpJSON=JSON.stringify(rp);
     document.getElementById('badge-reroute').textContent=rp.length;
-    document.getElementById('reroute-wrap').innerHTML=buildReroute(rp);
+    if(rpJSON!==_lastRerouteJSON){
+      _lastRerouteJSON=rpJSON;
+      document.getElementById('reroute-wrap').innerHTML=buildReroute(rp);
+    }
   }catch(e){console.warn('Reroute fetch error:',e.message);}
 
   await fetchAudit();

@@ -32,6 +32,7 @@ class TelemetryRecord:
     flight_status:    str                        # e.g. "ON_TIME", "DELAYED", "DIVERTED"
     delay_hours:      float                      # estimated delay vs. planned ETA
     battery_pct:      float
+    weather_severity: float = 0.0               # 0.0 (clear) → 1.0 (extreme storm)
     raw:              Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -49,6 +50,7 @@ class TelemetryRecord:
             "flight_status":  self.flight_status,
             "delay_hours":    self.delay_hours,
             "battery_pct":    self.battery_pct,
+            "weather_severity": self.weather_severity,
         }
 
 
@@ -110,6 +112,7 @@ class TelemetryAgent:
             flight_status  = str(payload.get("flight_status", "UNKNOWN")),
             delay_hours    = float(payload.get("delay_hours", 0.0)),
             battery_pct    = float(payload.get("battery_pct", 100.0)),
+            weather_severity = float(payload.get("weather_severity", 0.0)),
             raw            = payload,
         )
 

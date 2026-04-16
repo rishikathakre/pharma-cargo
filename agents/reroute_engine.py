@@ -617,26 +617,28 @@ class RerouteEngine:
           time_to_spoilage        = remaining_safe_fraction × excursion_budget_hours
 
         Floor at 0.5h (always at least 30 min of margin reported).
-        Cap at 72h (conservative upper bound if no excursion yet).
+        Cap at the product's own excursion budget (not a fixed 72h).
         """
         spoilage_prob = getattr(assessment, "spoilage_prob", 0.0)
         product_id    = getattr(assessment, "metadata", {}).get("product_id", "VACC-STANDARD")
 
+        budget = 72.0
         try:
-            from data.dataset_loader import loader
-            product = loader.get_product(product_id)
-            budget  = float(product.excursion_max_hours)
+            from data.product_catalogue import get_product_profile
+            profile = get_product_profile(product_id)
+            if profile:
+                budget = float(profile.excursion_max_hours)
         except Exception:
-            budget  = 72.0   # VACC-STANDARD default
+            pass
+        if budget <= 0:
+            budget = 72.0
 
         remaining = max(0.0, 1.0 - spoilage_prob) * budget
 
-        # Arrhenius acceleration: if current temp is high, real rate is faster.
-        # Apply a conservative 1.5× factor when spoilage_prob > 0.3.
         if spoilage_prob > 0.3:
             remaining /= 1.5
 
-        return max(0.5, min(remaining, 72.0))
+        return max(0.5, min(remaining, budget))
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -15,6 +15,8 @@ let activeSimId = null;
 let sidebarTimer = null;
 let followActive = false;
 let _lastReroutedState = false;  // track reroute state to avoid redrawing every tick
+let _lastSidebarShipmentsJSON = '';
+let _lastSidebarHitlJSON = '';
 const MAX_WEATHER_RADIUS_KM = 45;
 
 const statusEl = document.getElementById("status");
@@ -534,13 +536,21 @@ async function startSim() {
   async function refreshSidebar() {
     try {
       const sims = await fetchJSON("/api/sims");
-      renderShipments(sims);
+      const simsJSON = JSON.stringify(sims);
+      if (simsJSON !== _lastSidebarShipmentsJSON) {
+        _lastSidebarShipmentsJSON = simsJSON;
+        renderShipments(sims);
+      }
     } catch {
       // ignore transient sidebar issues
     }
     try {
       const pending = await fetchJSON("/api/hitl/pending");
-      renderHitl(pending);
+      const hitlJSON = JSON.stringify(pending);
+      if (hitlJSON !== _lastSidebarHitlJSON) {
+        _lastSidebarHitlJSON = hitlJSON;
+        renderHitl(pending);
+      }
     } catch {
       // ignore transient sidebar issues
     }

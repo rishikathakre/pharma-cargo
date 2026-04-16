@@ -36,6 +36,7 @@ class AnomalyType(str, Enum):
     FLIGHT_DIVERSION = "FLIGHT_DIVERSION"
     BATTERY_LOW      = "BATTERY_LOW"
     SUSTAINED_EXCURSION = "SUSTAINED_TEMP_EXCURSION"
+    SEVERE_WEATHER   = "SEVERE_WEATHER"
 
 
 class Severity(str, Enum):
@@ -230,6 +231,32 @@ class AnomalyAgent:
                 detected_at    = now,
                 description    = batt_msg,
                 measured_value = batt,
+            ))
+
+        # --- Severe weather ---
+        ws = record.weather_severity
+        if ws >= 0.8:
+            w_sev = Severity.CRITICAL
+            w_msg = f"Extreme weather (severity {ws:.2f}) — storm conditions threaten cold-chain and flight safety"
+        elif ws >= 0.6:
+            w_sev = Severity.HIGH
+            w_msg = f"Severe weather (severity {ws:.2f}) — significant risk to schedule and cargo integrity"
+        elif ws >= 0.4:
+            w_sev = Severity.MEDIUM
+            w_msg = f"Adverse weather (severity {ws:.2f}) — potential delays and handling disruption"
+        else:
+            w_sev = None
+
+        if w_sev is not None:
+            anomalies.append(Anomaly(
+                anomaly_type   = AnomalyType.SEVERE_WEATHER,
+                severity       = w_sev,
+                shipment_id    = record.shipment_id,
+                container_id   = record.container_id,
+                detected_at    = now,
+                description    = w_msg,
+                measured_value = ws,
+                threshold      = 0.4,
             ))
 
         if anomalies:

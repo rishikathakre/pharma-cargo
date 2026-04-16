@@ -737,6 +737,8 @@ class Simulation:
             return False
 
         if new_coords is None:
+            self.rerouted = True
+            self.reroute_plan = plan_dict
             return False
 
         now = time.monotonic()
@@ -879,46 +881,61 @@ class Simulation:
         jitter_bucket = int(now_mono * 2.0)  # changes ~2x/sec max
         rng = random.Random((hash(self.sim_id) ^ (jitter_bucket * 1_000_003)) & 0xFFFFFFFF)
 
-        # Map severity -> temperature excursion bands.
-        if severity < 0.5:
-            temp_target = rng.uniform(4.0, 7.5)  # safe 2–8°C range
-        elif severity < 0.7:
-            t = (severity - 0.5) / 0.2
-            temp_target = 9.0 + t * 3.0 + rng.uniform(-0.4, 0.4)
+        # ── Product profile ──────────────────────────────────────────
+        from data.product_catalogue import get_product_profile
+        profile = get_product_profile(self.product_id)
+        if profile:
+            p_min, p_max = float(profile.temp_min_c), float(profile.temp_max_c)
+            if p_min > p_max:
+                p_min, p_max = p_max, p_min
         else:
-            t = (severity - 0.7) / 0.3
-            temp_target = 13.0 + t * 5.0 + rng.uniform(-0.6, 0.6)
-        temp_target = max(2.0, min(18.5, temp_target))
+            p_min, p_max = 2.0, 8.0
+        product_target_c = (p_min + p_max) / 2.0
 
-        delay_hours = 0.0
-        flight_status = "ON_TIME"
-        customs_status = "CLEARED"
+        # ── Ambient temperature ──────────────────────────────────────
+        # Ground level: ~18 °C in clear weather, up to ~33 °C in a heat-wave / storm.
+        # Aircraft cargo hold: pressurised and partially heated, typically 12–22 °C.
+        ground_ambient_c = 18.0 + severity * 15.0
+        cargo_hold_ambient_c = rng.uniform(12.0, 22.0)
 
-        # --- Battery drain model ---
-        # Battery powers the container's active cooling unit.
-        # Drains linearly over the journey; extra drain during HOLDING (heavier
-        # cooling load while circling) and a small jitter for realism.
+        # ── Battery drain (physics-based) ────────────────────────────
+        # The container's cooling unit draws more power when the temperature
+        # difference between the product target and ambient is larger, and
+        # severe weather increases the ambient heat load.
         elapsed_sec = max(0.0, now_mono - self.created_at_monotonic)
         journey_fraction = elapsed_sec / max(1.0, float(self.duration_seconds))
-        # Normal drain: 100% → ~65% over the full journey.
-        battery_base = 100.0 - journey_fraction * 35.0
-        # Extra drain if we have been in a holding pattern.
+
+        temp_delta = abs(product_target_c - ground_ambient_c)
+        cooling_load = 1.0 + temp_delta / 40.0
+        weather_factor = 1.0 + severity * 1.5
+        drain_multiplier = cooling_load * weather_factor
+
+        battery_base = 100.0 - journey_fraction * 35.0 * drain_multiplier
+
         holding_elapsed_sec = 0.0
         if self.holding_start_monotonic is not None:
             holding_elapsed_sec = max(0.0, now_mono - self.holding_start_monotonic)
         holding_fraction = holding_elapsed_sec / max(1.0, float(self.duration_seconds))
-        # Holding draws an additional 30% worth of battery over the same journey window.
-        battery_base -= holding_fraction * 30.0
-        # Small deterministic jitter (±2%).
+        battery_base -= holding_fraction * 30.0 * drain_multiplier
+
         battery_pct = round(max(0.0, min(100.0, battery_base + rng.uniform(-2.0, 2.0))), 1)
 
+        # ── Cooling effectiveness ────────────────────────────────────
+        # 100 % at battery ≥ 40 %; linear degradation to 0 % at battery ≤ 5 %.
+        cooling_eff = min(1.0, max(0.0, (battery_pct - 5.0) / 35.0))
+
+        # ── Phase-specific sensors ───────────────────────────────────
+        delay_hours = 0.0
+        flight_status = "ON_TIME"
+        customs_status = "CLEARED"
+
         if phase == "WAIT_TAKEOFF":
-            temperature_c = rng.uniform(4.0, 6.0)
+            hold_ambient_c = ground_ambient_c
             humidity_pct = rng.uniform(40.0, 55.0)
             shock_g = rng.uniform(0.02, 0.08)
             altitude_m = rng.uniform(0.0, 30.0)
         elif phase == "ENROUTE":
-            temperature_c = temp_target
+            hold_ambient_c = cargo_hold_ambient_c
             humidity_pct = rng.uniform(18.0, 35.0)
             shock_g = rng.uniform(0.01, 0.06)
             p = max(0.0, min(1.0, float(self.progress(now_mono))))
@@ -933,20 +950,28 @@ class Simulation:
                 delay_hours = enroute_elapsed_h * (severity - 0.6) * 6.0
             flight_status = "DELAYED" if delay_hours >= 0.5 else "ON_TIME"
         elif phase == "HOLDING":
+            hold_ambient_c = rng.uniform(15.0, 25.0)
             customs_status = "HOLD"
             flight_status = "DELAYED"
             holding_elapsed_h = holding_elapsed_sec / 3600.0
             delay_hours = max(1.0, holding_elapsed_h + severity * 3.0)
-            temperature_c = min(18.0, temp_target + holding_elapsed_h * 4.0 + rng.uniform(-0.3, 0.3))
             humidity_pct = rng.uniform(30.0, 50.0)
             shock_g = rng.uniform(0.02, 0.09)
             osc = math.sin((now_mono - self.created_at_monotonic) * 0.35 * max(1.0, float(self.speed_multiplier)))
             altitude_m = max(0.0, 6100.0 + osc * 450.0 + rng.uniform(-80.0, 80.0))
         else:  # ARRIVED
-            temperature_c = rng.uniform(4.0, 6.0)
+            hold_ambient_c = ground_ambient_c
             humidity_pct = rng.uniform(40.0, 60.0)
             shock_g = rng.uniform(0.01, 0.05)
             altitude_m = 0.0
+
+        # ── Container temperature ────────────────────────────────────
+        # When cooling is effective the container holds the product at its
+        # target temperature.  As battery depletes and cooling degrades the
+        # container drifts toward the surrounding cargo-hold / ground ambient.
+        temperature_c = (cooling_eff * product_target_c
+                         + (1.0 - cooling_eff) * hold_ambient_c
+                         + rng.uniform(-0.3, 0.3))
 
         return {
             "shipment_id": self.shipment_id,
@@ -1076,19 +1101,18 @@ def _tick_pipeline(sim: Simulation) -> None:
         assessment.metadata["gdp_check_error"] = str(e)
 
     # HITL: create at most ONE request per shipment until risk resets to LOW.
-    # This avoids duplicate alert cards when the shipment remains high risk across ticks.
+    # Once a reroute has been approved, NEVER create another alert for this shipment.
     sim._last_hitl_request_id = None
-    if assessment.risk_level == RiskLevel.LOW:
+    if sim.rerouted:
+        pass  # reroute already accepted — suppress all further HITL alerts
+    elif assessment.risk_level == RiskLevel.LOW:
         sim._hitl_request_created_id = None
     else:
-        # If there's a currently pending request, show it.
         existing = _pending_request_for_shipment(assessment.shipment_id)
         if existing is not None:
             sim._last_hitl_request_id = existing.request_id
             sim._hitl_request_created_id = existing.request_id
         else:
-            # No pending request. Only create a new one if we never created one
-            # for this shipment since the last reset-to-LOW.
             if sim._hitl_request_created_id is None:
                 req = _approval_queue.submit(assessment)
                 sim._last_hitl_request_id = req.request_id
@@ -1232,9 +1256,17 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
     def _orchestrator_loop(s: Simulation) -> None:
         """Slow loop: feed telemetry into the orchestrator every 4 s.
         ORCHESTRATOR.run() may block up to 30 s (HITL) but that never
-        delays the telemetry loop above."""
+        delays the telemetry loop above.
+        Once the sim has been rerouted (or any HITL decision has been made),
+        stop feeding the pipeline entirely so no duplicate alerts appear."""
+        _hitl_resolved = False
         while True:
             time.sleep(4)
+            # Once rerouted or an HITL decision was already made, stop pipeline entirely.
+            if s.rerouted or _hitl_resolved:
+                if s.phase == "ARRIVED":
+                    return
+                continue
             with s._pipeline_lock:
                 tel = s._last_telemetry
             if tel is None:
@@ -1255,6 +1287,10 @@ def create_sim(req: CreateSimRequest) -> CreateSimResponse:
                         s.apply_reroute(plan_dict)
                         break
 
+            # If the orchestrator just went through HITL (approved/rejected/timeout),
+            # mark this loop as done so we never submit another request.
+            if state.hitl_request is not None:
+                _hitl_resolved = True
             if s.phase == "ARRIVED":
                 return
 
@@ -1479,12 +1515,17 @@ def approve_hitl(request_id: str, body: ApproveRequestBody) -> dict:
     assessment = sim._last_assessment if sim else None
 
     if assessment is not None and actions_to_execute:
+        # If REROUTE_SHIPMENT is among the approved actions, mark the sim as rerouted
+        # BEFORE executing so no new HITL alerts can sneak in during execution.
+        has_reroute = any(a == RecommendedAction.REROUTE_SHIPMENT for a in actions_to_execute)
+        if sim is not None and has_reroute:
+            sim.rerouted = True
+
         results = _orchestrator.act.execute(assessment, actions_to_execute)
         if sim:
             sim._last_actions = [r.to_dict() for r in results]
         for r in results:
             _audit.log_action_result(r)
-            # If the action is REROUTE_SHIPMENT and succeeded, redirect the flight on the map.
             if (
                 sim is not None
                 and r.success
