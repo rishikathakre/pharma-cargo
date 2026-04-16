@@ -654,8 +654,8 @@ function buildCard(req){
       '<div class="decision-row">'+
         '<input class="inp-op" type="text" id="op-'+req.request_id+'" placeholder="Operator name"/>'+
         '<input class="inp-nt" type="text" id="nt-'+req.request_id+'" placeholder="Notes (optional)"/>'+
-        '<button class="btn btn-approve" onclick="decide(\''+req.request_id+'\',\'approve\')">&#10003; Approve</button>'+
-        '<button class="btn btn-reject"  onclick="decide(\''+req.request_id+'\',\'reject\')">&#10007; Reject</button>'+
+        '<button class="btn btn-approve" onclick="decide(\\''+req.request_id+'\\',\\'approve\\')">&#10003; Approve</button>'+
+        '<button class="btn btn-reject"  onclick="decide(\\''+req.request_id+'\\',\\'reject\\')">&#10007; Reject</button>'+
       '</div>'+
     '</div>'+
   '</div>';
@@ -832,12 +832,11 @@ async function refresh(){
     document.getElementById('last-refresh').textContent=new Date().toLocaleTimeString();
   }catch(e){console.warn('Refresh error:',e.message);}
 
-  // Fetch and render reroute intelligence panel
+  // Fetch reroute results from the map sim process (port 8090)
   try{
-    const rp=await(await fetch('/reroute')).json();
-    const sorted=rp.sort((a,b)=>(b.assessed_at||'').localeCompare(a.assessed_at||''));
-    document.getElementById('badge-reroute').textContent=sorted.length;
-    document.getElementById('reroute-wrap').innerHTML=buildReroute(sorted);
+    const rp=await(await fetch('http://localhost:8090/api/reroute')).json();
+    document.getElementById('badge-reroute').textContent=rp.length;
+    document.getElementById('reroute-wrap').innerHTML=buildReroute(rp);
   }catch(e){console.warn('Reroute fetch error:',e.message);}
 
   await fetchAudit();

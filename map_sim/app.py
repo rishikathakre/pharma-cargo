@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -960,6 +961,9 @@ _orchestrator   = CascadeOrchestrator(approval_queue=_approval_queue)
 ORCHESTRATOR    = _orchestrator   # shared ref — overwritten by set_orchestrator() from start.py
 _audit          = AuditLogger()
 
+# Reroute results store — keyed by shipment_id, updated whenever a reroute plan executes
+_REROUTE_STORE: Dict[str, dict] = {}
+
 
 def set_queue(q: ApprovalQueue) -> None:
     """Wire in a shared ApprovalQueue (called from start.py)."""
@@ -972,6 +976,39 @@ def set_orchestrator(orch: CascadeOrchestrator) -> None:
     global _orchestrator, ORCHESTRATOR
     _orchestrator = orch
     ORCHESTRATOR  = orch
+    _patch_reroute_handler(orch)
+
+
+def _patch_reroute_handler(orch: CascadeOrchestrator) -> None:
+    """Wrap the reroute action handler so results are stored in _REROUTE_STORE."""
+    from agents.risk_agent import RecommendedAction as RA
+    original = orch._handle_reroute_shipment
+
+    def _patched(assessment):
+        result = original(assessment)
+        plan = (result or {}).get("reroute_plan") or {}
+        if plan:
+            _REROUTE_STORE[assessment.shipment_id] = {
+                **plan,
+                "shipment_id":   assessment.shipment_id,
+                "assessed_at":   assessment.assessed_at.isoformat(),
+                "risk_score":    round(assessment.risk_score, 4),
+                "risk_level":    assessment.risk_level.value,
+                "spoilage_prob": round(float(assessment.spoilage_prob or 0.0), 4),
+                "product_id":    assessment.metadata.get("product_id", ""),
+                "destination":   assessment.metadata.get("destination", ""),
+                "battery_pct":   assessment.metadata.get("battery_pct"),
+                "phase":         assessment.metadata.get("phase", ""),
+                "delay_hours":   assessment.metadata.get("delay_hours", 0.0),
+            }
+        return result
+
+    orch.act.register_handler(RA.REROUTE_SHIPMENT, lambda a: _patched(a))
+
+
+# Patch the default orchestrator now that the function is defined
+_patch_reroute_handler(_orchestrator)
+
 
 def _pending_request_for_shipment(shipment_id: str) -> Optional[ApprovalRequest]:
     for r in _approval_queue.pending():
@@ -1042,6 +1079,13 @@ def _tick_pipeline(sim: Simulation) -> None:
 
 
 app = FastAPI(title="Map Simulation (Isolated)", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -1356,6 +1400,22 @@ class ApproveRequestBody(BaseModel):
 class RejectRequestBody(BaseModel):
     operator: str = "map_operator"
     notes: str = ""
+
+
+@app.get("/api/reroute")
+def get_reroute_results() -> List[dict]:
+    """Return reroute plan results.  Both servers share one process so we can
+    read directly from hitl.dashboard's in-memory store (written by the
+    orchestrator's push_reroute_result call) without any cross-process IPC."""
+    try:
+        from hitl.dashboard import _reroute_results, _reroute_lock
+        with _reroute_lock:
+            plans = list(_reroute_results.values())
+        return sorted(plans, key=lambda x: x.get("assessed_at", ""), reverse=True)
+    except Exception:
+        # Fallback to local store if dashboard module not available
+        return sorted(_REROUTE_STORE.values(),
+                      key=lambda x: x.get("assessed_at", ""), reverse=True)
 
 
 @app.get("/api/hitl/pending")
