@@ -32,15 +32,14 @@ flowchart TD
 
     IOT --> TEL
 
-    style IOT fill:#0d9488,color:#fff,stroke:none
-    style PIPELINE fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5
-    style TEL fill:#0ea5e9,color:#fff,stroke:none
-    style ANO fill:#0ea5e9,color:#fff,stroke:none
-    style RISK fill:#0ea5e9,color:#fff,stroke:none
-    style GDP fill:#22c55e,color:#fff,stroke:none
-    style HITL fill:#f59e0b,color:#fff,stroke:none
-    style ACT fill:#8b5cf6,color:#fff,stroke:none
-    style AUDIT fill:#22c55e,color:#fff,stroke:none
+    style IOT fill:#0d9488,color:#fff
+    style TEL fill:#0ea5e9,color:#fff
+    style ANO fill:#0ea5e9,color:#fff
+    style RISK fill:#0ea5e9,color:#fff
+    style GDP fill:#22c55e,color:#fff
+    style HITL fill:#f59e0b,color:#fff
+    style ACT fill:#8b5cf6,color:#fff
+    style AUDIT fill:#22c55e,color:#fff
 ```
 
 ### Cascading Actions & Downstream Systems
@@ -61,12 +60,12 @@ flowchart LR
     ACT --> IU
     ACT --> CE
 
-    style ACT fill:#8b5cf6,color:#fff,stroke:none
-    style RE fill:#a78bfa,color:#fff,stroke:none
-    style HN fill:#a78bfa,color:#fff,stroke:none
-    style ID fill:#a78bfa,color:#fff,stroke:none
-    style IU fill:#a78bfa,color:#fff,stroke:none
-    style CE fill:#a78bfa,color:#fff,stroke:none
+    style ACT fill:#8b5cf6,color:#fff
+    style RE fill:#a78bfa,color:#fff
+    style HN fill:#a78bfa,color:#fff
+    style ID fill:#a78bfa,color:#fff
+    style IU fill:#a78bfa,color:#fff
+    style CE fill:#a78bfa,color:#fff
 ```
 
 ### Deployment (3 servers, 1 shared queue)
@@ -81,12 +80,12 @@ flowchart TB
     end
 
     subgraph UIS["User Interfaces"]
-        D[":8080 — HITL Dashboard\nApprovals · audit log · reroute intel"]
-        H[":8060 — Hospital Monitor\nVaccine flights · viability alerts · ETA"]
-        M[":8090 — Map Simulation\nLeaflet map · air routes · weather · HITL sidebar"]
+        D[":8080 HITL Dashboard\nApprovals · audit log · reroute intel"]
+        H[":8060 Hospital Monitor\nVaccine flights · viability alerts · ETA"]
+        M[":8090 Map Simulation\nLeaflet map · air routes · weather · HITL sidebar"]
     end
 
-    START -- "injects queue +\norchestrator" --> D
+    START -- "injects queue + orchestrator" --> D
     START --> H
     START --> M
 
@@ -95,13 +94,13 @@ flowchart TB
     M <--> Q
     M <--> O
 
-    style START fill:#1e293b,color:#fff,stroke:none
-    style Q fill:#f59e0b,color:#fff,stroke:none
-    style O fill:#0ea5e9,color:#fff,stroke:none
+    style START fill:#1e293b,color:#fff
+    style Q fill:#f59e0b,color:#fff
+    style O fill:#0ea5e9,color:#fff
     style SHARED fill:#fefce8,stroke:#f59e0b
-    style D fill:#ef4444,color:#fff,stroke:none
-    style H fill:#ef4444,color:#fff,stroke:none
-    style M fill:#ef4444,color:#fff,stroke:none
+    style D fill:#ef4444,color:#fff
+    style H fill:#ef4444,color:#fff
+    style M fill:#ef4444,color:#fff
     style UIS fill:#fff1f2,stroke:#ef4444
 ```
 
